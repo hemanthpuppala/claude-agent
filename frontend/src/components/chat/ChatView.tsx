@@ -94,17 +94,21 @@ function MessageRenderer({ message, onPermission }: {
         />
       );
     }
-    case "system":
+    case "system": {
+      const sysMsg = message as { subtype?: string; data?: string };
+      // Hide init, config, and internal system messages
+      if (sysMsg.subtype === "init" || sysMsg.subtype === "config" || !sysMsg.subtype) return null;
       return (
         <div style={{
           display: "flex", alignItems: "center", gap: 12,
           padding: "16px 0", fontSize: 11, color: "var(--color-text-tertiary)",
         }}>
           <div style={{ flex: 1, height: 1, background: "var(--color-border-subtle)" }} />
-          <span>{(message as { data?: string }).data || "System"}</span>
+          <span>{sysMsg.subtype || "System"}</span>
           <div style={{ flex: 1, height: 1, background: "var(--color-border-subtle)" }} />
         </div>
       );
+    }
     case "error":
       return (
         <div style={{

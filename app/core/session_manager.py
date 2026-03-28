@@ -272,6 +272,10 @@ class SessionManager:
                     await self._broadcast(session, serialized)
                     continue
 
+                # System init/config messages are internal — don't persist or broadcast
+                if msg_type == "system" and serialized.get("subtype") in ("init", "config"):
+                    continue
+
                 # Persist durable messages
                 session.message_seq += 1
                 session.message_log.append(serialized)
