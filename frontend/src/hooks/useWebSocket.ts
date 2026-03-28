@@ -6,32 +6,46 @@ import type { ServerMessage, SessionInfoMsg, SessionConfig } from "@/lib/types";
 
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000];
 
+/**
+ * WebSocket hook for Claude sessions.
+ *
+ * Key design decisions:
+ * - All store interactions go through refs to avoid useCallback/useEffect dependency loops
+ * - connect() is a plain ref function, NOT a useCallback, so it never triggers re-effects
+ * - cleanedUpRef prevents StrictMode double-mount from causing duplicate messages
+ * - Reconnect timer is tracked and cleared on cleanup
+ */
 export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanedUpRef = useRef(false);
-  const store = useSessionStore();
-  const setReconnecting = useUIStore((s) => s.setReconnecting);
+  const connectedKeyRef = useRef<string | null>(null);
 
-  // Stable ref to sessionId so onmessage handler always has current value
+  // Stable refs to props — avoids stale closures
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
+  const cwdRef = useRef(cwd);
+  cwdRef.current = cwd;
 
-  // Track connected session ID from server
-  const connectedSessionIdRef = useRef<string | null>(null);
+  // Stable refs to store actions — avoids dependency loops
+  // getState() is called inside handlers, not during render, so always fresh
+  const getStore = () => useSessionStore.getState();
+  const getUIStore = () => useUIStore.getState();
 
-  const getKey = useCallback(() => {
-    return connectedSessionIdRef.current || sessionIdRef.current || "";
-  }, []);
+  const getKey = () => connectedKeyRef.current || sessionIdRef.current || "";
 
-  const connect = useCallback(() => {
+  // connect is a ref function — never changes identity, never triggers useEffect
+  const connectRef = useRef<() => void>(() => {});
+  connectRef.current = () => {
     if (cleanedUpRef.current) return;
-    if (!sessionIdRef.current && !cwd) return;
+    const sid = sessionIdRef.current;
+    const c = cwdRef.current;
+    if (!sid && !c) return;
 
     const params = new URLSearchParams();
-    if (sessionIdRef.current) params.set("session_id", sessionIdRef.current);
-    if (cwd) params.set("cwd", cwd);
+    if (sid) params.set("session_id", sid);
+    if (c) params.set("cwd", c);
 
     const url = getWsUrl(`/ws/claude?${params}`);
     const ws = new WebSocket(url);
@@ -40,24 +54,21 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
     ws.onopen = () => {
       if (cleanedUpRef.current) { ws.close(); return; }
       retryRef.current = 0;
-      setReconnecting(false);
+      getUIStore().setReconnecting(false);
     };
 
     ws.onmessage = (event) => {
       if (cleanedUpRef.current) return;
+      const store = getStore();
 
       let data: ServerMessage;
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        return;
-      }
+      try { data = JSON.parse(event.data); } catch { return; }
 
       switch (data.type) {
         case "session_info": {
           const info = data as SessionInfoMsg;
           const key = sessionIdRef.current || info.session_id;
-          connectedSessionIdRef.current = key;
+          connectedKeyRef.current = key;
           store.initSession(key, {
             sdk_session_id: info.sdk_session_id,
             cwd: info.cwd,
@@ -104,27 +115,29 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
     ws.onclose = () => {
       if (cleanedUpRef.current) return;
       wsRef.current = null;
+      // Only show reconnecting after first successful connection
       if (retryRef.current > 0) {
-        setReconnecting(true);
+        getUIStore().setReconnecting(true);
       }
       if (retryRef.current < 10) {
         const delay = RECONNECT_DELAYS[Math.min(retryRef.current, RECONNECT_DELAYS.length - 1)];
         retryRef.current++;
-        retryTimerRef.current = setTimeout(connect, delay);
+        retryTimerRef.current = setTimeout(() => connectRef.current?.(), delay);
       }
     };
 
-    ws.onerror = () => {
-      ws.close();
-    };
-  }, [cwd, store, setReconnecting, getKey]);
+    ws.onerror = () => { ws.close(); };
+  };
 
+  // Single effect — runs once on mount (and once on unmount for StrictMode)
+  // Dependencies: sessionId and cwd only (the actual connection params)
   useEffect(() => {
     cleanedUpRef.current = false;
-    connect();
+    retryRef.current = 0;
+    connectedKeyRef.current = null;
+    connectRef.current?.();
 
     return () => {
-      // Mark as cleaned up so stale callbacks don't fire
       cleanedUpRef.current = true;
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
@@ -135,32 +148,23 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
         wsRef.current = null;
       }
     };
-  }, [connect]);
+  }, [sessionId, cwd]);
 
+  // Stable send functions — never change identity
   const send = useCallback((data: Record<string, unknown>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
     }
   }, []);
 
-  const sendQuery = useCallback((prompt: string) => {
-    send({ type: "query", prompt });
-  }, [send]);
-
+  const sendQuery = useCallback((prompt: string) => send({ type: "query", prompt }), [send]);
   const sendPermission = useCallback(
-    (requestId: string, decision: string, message = "") => {
-      send({ type: "permission_response", request_id: requestId, decision, message });
-    },
+    (requestId: string, decision: string, message = "") =>
+      send({ type: "permission_response", request_id: requestId, decision, message }),
     [send],
   );
-
-  const sendInterrupt = useCallback(() => {
-    send({ type: "interrupt" });
-  }, [send]);
-
-  const sendConfig = useCallback((changes: Record<string, unknown>) => {
-    send({ type: "config", ...changes });
-  }, [send]);
+  const sendInterrupt = useCallback(() => send({ type: "interrupt" }), [send]);
+  const sendConfig = useCallback((changes: Record<string, unknown>) => send({ type: "config", ...changes }), [send]);
 
   return { send, sendQuery, sendPermission, sendInterrupt, sendConfig };
 }
