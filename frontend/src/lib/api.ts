@@ -60,6 +60,23 @@ export const projects = {
     }),
 };
 
+/* Commands */
+
+export const commands = {
+  list: (cwd = "") =>
+    request<{ name: string; description: string; scope: string; body?: string }[]>(
+      `/api/commands${cwd ? `?cwd=${encodeURIComponent(cwd)}` : ""}`
+    ),
+  skills: (cwd = "") =>
+    request<{ name: string; description: string }[]>(
+      `/api/commands/skills${cwd ? `?cwd=${encodeURIComponent(cwd)}` : ""}`
+    ),
+  claudeMd: (cwd = "") =>
+    request<{ path: string | null; content: string | null }>(
+      `/api/commands/claude-md${cwd ? `?cwd=${encodeURIComponent(cwd)}` : ""}`
+    ),
+};
+
 /* Notifications */
 
 export const notifications = {

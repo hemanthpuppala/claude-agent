@@ -159,7 +159,7 @@ function SessionConfigPanel({ config, onConfigChange, onClose }: {
         </div>
 
         {/* System Prompt */}
-        <div>
+        <div style={{ marginBottom: 20 }}>
           <SectionLabel>System Prompt</SectionLabel>
           <TextArea
             value={systemPrompt}
@@ -181,7 +181,167 @@ function SessionConfigPanel({ config, onConfigChange, onClose }: {
             </button>
           )}
         </div>
+
+        {/* MCP Servers */}
+        <div>
+          <SectionLabel>MCP Servers</SectionLabel>
+          <McpServerConfig
+            servers={config.mcp_servers}
+            onChange={(v) => onConfigChange({ mcp_servers: v })}
+          />
+        </div>
       </div>
+    </div>
+  );
+}
+
+function McpServerConfig({ servers, onChange }: {
+  servers: Record<string, unknown> | null;
+  onChange: (servers: Record<string, unknown> | null) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCommand, setNewCommand] = useState("");
+  const [newArgs, setNewArgs] = useState("");
+
+  const serverEntries = Object.entries(servers || {});
+
+  const handleAdd = () => {
+    if (!newName.trim() || !newCommand.trim()) return;
+    const updated = {
+      ...(servers || {}),
+      [newName.trim()]: {
+        command: newCommand.trim(),
+        args: newArgs.trim() ? newArgs.trim().split(/\s+/) : [],
+      },
+    };
+    onChange(updated);
+    setNewName("");
+    setNewCommand("");
+    setNewArgs("");
+    setAdding(false);
+  };
+
+  const handleRemove = (name: string) => {
+    const updated = { ...(servers || {}) };
+    delete updated[name];
+    onChange(Object.keys(updated).length > 0 ? updated : null);
+  };
+
+  return (
+    <div>
+      {serverEntries.length === 0 && !adding && (
+        <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginBottom: 8 }}>
+          No MCP servers configured
+        </div>
+      )}
+
+      {serverEntries.map(([name, config]) => {
+        const cfg = config as { command?: string; args?: string[] };
+        return (
+          <div key={name} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "6px 8px", borderRadius: 6, marginBottom: 4,
+            background: "var(--color-bg)",
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: 99,
+              background: "var(--color-success)", flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: "var(--font-mono)", color: "var(--color-text)", flex: 1 }}>
+              {name}
+            </span>
+            <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              {cfg.command}
+            </span>
+            <button
+              onClick={() => handleRemove(name)}
+              style={{
+                fontSize: 11, color: "var(--color-destructive)",
+                background: "none", border: "none", cursor: "pointer",
+                padding: "2px 6px",
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        );
+      })}
+
+      {adding ? (
+        <div style={{
+          padding: 10, borderRadius: 8, marginTop: 8,
+          background: "var(--color-bg)",
+          border: "1px solid var(--color-border-subtle)",
+        }}>
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Server name (e.g. playwright)"
+            style={{
+              width: "100%", padding: "6px 8px", borderRadius: 6, marginBottom: 6,
+              border: "1px solid var(--color-border)", background: "var(--color-bg-elevated)",
+              color: "var(--color-text)", fontSize: 12, fontFamily: "var(--font-mono)",
+              outline: "none",
+            }}
+          />
+          <input
+            value={newCommand}
+            onChange={(e) => setNewCommand(e.target.value)}
+            placeholder="Command (e.g. npx)"
+            style={{
+              width: "100%", padding: "6px 8px", borderRadius: 6, marginBottom: 6,
+              border: "1px solid var(--color-border)", background: "var(--color-bg-elevated)",
+              color: "var(--color-text)", fontSize: 12, fontFamily: "var(--font-mono)",
+              outline: "none",
+            }}
+          />
+          <input
+            value={newArgs}
+            onChange={(e) => setNewArgs(e.target.value)}
+            placeholder="Args (space-separated, e.g. @playwright/mcp@latest)"
+            style={{
+              width: "100%", padding: "6px 8px", borderRadius: 6, marginBottom: 8,
+              border: "1px solid var(--color-border)", background: "var(--color-bg-elevated)",
+              color: "var(--color-text)", fontSize: 12, fontFamily: "var(--font-mono)",
+              outline: "none",
+            }}
+          />
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={handleAdd}
+              style={{
+                padding: "5px 12px", borderRadius: 6, border: "none",
+                background: "var(--color-accent)", color: "#fff",
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Add
+            </button>
+            <button
+              onClick={() => setAdding(false)}
+              style={{
+                padding: "5px 12px", borderRadius: 6, border: "none",
+                background: "transparent", color: "var(--color-text-tertiary)",
+                fontSize: 11, cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          style={{
+            marginTop: 6, fontSize: 12, color: "var(--color-accent)",
+            background: "none", border: "none", cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          + Add MCP server
+        </button>
+      )}
     </div>
   );
 }

@@ -16,6 +16,8 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 class CreateSessionRequest(BaseModel):
     cwd: str
     name: str = ""
+    resume: str | None = None        # SDK session ID to resume
+    fork_from: str | None = None     # our session ID to fork from
     permission_mode: str = "acceptEdits"
     model: str | None = None
     allowed_tools: list[str] | None = None
@@ -57,9 +59,25 @@ async def api_create_session(request: Request, body: CreateSessionRequest):
     path = os.path.abspath(body.cwd)
     if not os.path.isdir(path):
         raise HTTPException(400, f"Directory not found: {path}")
-    config = body.model_dump(exclude={"cwd", "name"}, exclude_none=True)
-    session = await request.app.state.manager.create(path, name=body.name, **config)
-    return request.app.state.manager._get_session_info(session)
+    config = body.model_dump(exclude={"cwd", "name", "resume", "fork_from"}, exclude_none=True)
+
+    manager = request.app.state.manager
+
+    # Fork: create new session with copied config from existing
+    if body.fork_from:
+        source = await get_session(request.app.state.db, body.fork_from)
+        if not source:
+            raise HTTPException(404, f"Source session {body.fork_from} not found")
+        # Use source's SDK session ID for resume + fork
+        config["resume_sdk_session"] = source["sdk_session_id"]
+        config["fork"] = True
+
+    # Resume: pass SDK session ID to the session manager
+    if body.resume:
+        config["resume_sdk_session"] = body.resume
+
+    session = await manager.create(path, name=body.name, **config)
+    return manager._get_session_info(session)
 
 
 @router.get("/{session_id}")

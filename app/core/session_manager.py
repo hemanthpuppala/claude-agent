@@ -95,11 +95,15 @@ class SessionManager:
     # --- Lifecycle ---
 
     async def create(self, cwd: str, name: str = "", **config) -> ManagedSession:
-        """Create a new persistent session."""
+        """Create a new persistent session. Supports resume and fork."""
         session_id = str(uuid4())
+        resume_sdk = config.pop("resume_sdk_session", None)
+        is_fork = config.pop("fork", False)
+
         session = ManagedSession(
             id=session_id,
             cwd=cwd,
+            sdk_session_id=resume_sdk,
             permission_mode=config.get("permission_mode", DEFAULT_PERMISSION_MODE),
             model=config.get("model"),
             allowed_tools=config.get("allowed_tools"),
@@ -111,9 +115,12 @@ class SessionManager:
         )
 
         await db_create_session(self._db, session_id, cwd, name, **config)
-        await self._start_client(session)
+        if resume_sdk:
+            await db_update_session(self._db, session_id, sdk_session_id=resume_sdk)
+        await self._start_client(session, fork=is_fork)
         self._sessions[session_id] = session
-        log.info("Created session %s for %s", session_id[:8], cwd)
+        action = "Forked" if is_fork else "Resumed" if resume_sdk else "Created"
+        log.info("%s session %s for %s", action, session_id[:8], cwd)
         return session
 
     async def restore(self, session_id: str) -> ManagedSession:
@@ -191,7 +198,7 @@ class SessionManager:
 
     # --- Client Setup ---
 
-    async def _start_client(self, session: ManagedSession):
+    async def _start_client(self, session: ManagedSession, fork: bool = False):
         """Start the SDK client for a session."""
         async def can_use_tool(tool_name, tool_input, context):
             return await self._handle_permission(session, tool_name, tool_input)
@@ -207,6 +214,8 @@ class SessionManager:
             system_prompt=session.system_prompt,
             max_turns=session.max_turns,
             mcp_servers=session.mcp_servers,
+            fork_session=fork if fork else None,
+            setting_sources=["project"],
         )
 
         session.client = ClaudeSDKClient(options=options)

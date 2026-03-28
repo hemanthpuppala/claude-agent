@@ -66,6 +66,7 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
         onInterrupt={sendInterrupt}
         isRunning={isRunning}
         disabled={!isConnected}
+        cwd={session?.cwd || cwd}
       />
     </div>
   );
