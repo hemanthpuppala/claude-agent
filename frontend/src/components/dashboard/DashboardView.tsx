@@ -3,6 +3,7 @@ import { Plus, Zap, CheckCircle, XCircle, ArrowRight, FolderOpen } from "lucide-
 import { sessions as sessionsApi, projects as projectsApi } from "@/lib/api";
 import { useTabStore } from "@/stores/tabStore";
 import { formatCost, formatTimeAgo, truncate } from "@/lib/utils";
+import { PushOnboarding } from "@/components/notifications/PushOnboarding";
 import type { Session } from "@/lib/types";
 
 export function DashboardView() {
@@ -75,6 +76,9 @@ export function DashboardView() {
             Remote Claude Code terminal — persistent, autonomous, mobile-friendly
           </p>
         </div>
+
+        {/* Push Notification Onboarding */}
+        <PushOnboarding />
 
         {/* Active Sessions */}
         {active.length > 0 && (
