@@ -4,6 +4,7 @@ import { TabBar } from "@/components/layout/TabBar";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { ReconnectionBanner } from "@/components/notifications/ReconnectionBanner";
 import { DashboardView } from "@/components/dashboard/DashboardView";
+import { ChatView } from "@/components/chat/ChatView";
 import { useTabStore } from "@/stores/tabStore";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -16,42 +17,31 @@ export function App() {
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-[var(--color-bg)]">
-      {/* Activity Bar */}
+    <div style={{ display: "flex", height: "100dvh", width: "100%", overflow: "hidden", background: "var(--color-bg)" }}>
       <ActivityBar />
-
-      {/* Sidebar Panel */}
       {sidebarOpen && <Sidebar />}
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col min-w-0">
-        {/* Reconnection Banner */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
         {reconnecting && <ReconnectionBanner />}
-
-        {/* Tab Bar */}
         <TabBar />
 
-        {/* Tab Content */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           {activeTab?.type === "dashboard" && <DashboardView />}
           {activeTab?.type === "session" && (
-            <div className="flex items-center justify-center h-full text-[var(--color-text-secondary)]">
-              Session view — coming next
-            </div>
+            <ChatView sessionId={activeTab.sessionId} cwd={activeTab.project} />
           )}
           {activeTab?.type === "terminal" && (
-            <div className="flex items-center justify-center h-full text-[var(--color-text-secondary)]">
-              Terminal view — coming next
+            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>
+              Terminal — coming next
             </div>
           )}
           {activeTab?.type === "file" && (
-            <div className="flex items-center justify-center h-full text-[var(--color-text-secondary)]">
+            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>
               File viewer — coming next
             </div>
           )}
         </div>
 
-        {/* Status Bar (for session tabs) */}
         {activeTab?.type === "session" && <StatusBar />}
       </div>
     </div>
