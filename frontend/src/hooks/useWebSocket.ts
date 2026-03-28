@@ -90,10 +90,16 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
 
     ws.onclose = () => {
       wsRef.current = null;
-      const delay = RECONNECT_DELAYS[Math.min(retryRef.current, RECONNECT_DELAYS.length - 1)];
-      retryRef.current++;
-      setReconnecting(true);
-      setTimeout(connect, delay);
+      // Only show "reconnecting" after we've connected at least once
+      if (retryRef.current > 0) {
+        setReconnecting(true);
+      }
+      // Cap retries at 10
+      if (retryRef.current < 10) {
+        const delay = RECONNECT_DELAYS[Math.min(retryRef.current, RECONNECT_DELAYS.length - 1)];
+        retryRef.current++;
+        setTimeout(connect, delay);
+      }
     };
 
     ws.onerror = () => {
