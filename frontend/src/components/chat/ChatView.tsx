@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { useMobile } from "@/hooks/useMobile";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useClaudeWebSocket } from "@/hooks/useWebSocket";
 import { ChatInput } from "./ChatInput";
@@ -14,6 +15,7 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
   const addMessage = useSessionStore((s) => s.addMessage);
   const { sendQuery, sendPermission, sendInterrupt } = useClaudeWebSocket(sessionId ?? null, cwd);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { isMobile } = useMobile();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,7 +37,7 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--color-bg)" }}>
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 0" }}>
-        <div style={{ maxWidth: 768, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "0 12px" : "0 24px" }}>
 
           {/* Empty / connecting state */}
           {messages.length === 0 && (

@@ -3,6 +3,8 @@ import { Settings, X } from "lucide-react";
 import { RadioGroup } from "@/components/ui/RadioGroup";
 import { Select } from "@/components/ui/Select";
 import { CheckboxGrid } from "@/components/ui/CheckboxGrid";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { useMobile } from "@/hooks/useMobile";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { TextArea } from "@/components/ui/TextArea";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -15,15 +17,16 @@ export function SessionConfigButton({ config, onConfigChange }: {
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { isMobile } = useMobile();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || isMobile) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [open, isMobile]);
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -32,7 +35,7 @@ export function SessionConfigButton({ config, onConfigChange }: {
         title="Session config"
         style={{
           display: "flex", alignItems: "center", justifyContent: "center",
-          width: 28, height: 28, borderRadius: 6, border: "none",
+          width: 44, height: 44, minWidth: 44, borderRadius: 6, border: "none",
           background: open ? "var(--color-bg-surface)" : "transparent",
           color: open ? "var(--color-text)" : "var(--color-text-tertiary)",
           cursor: "pointer", transition: "all 0.15s",
@@ -43,12 +46,18 @@ export function SessionConfigButton({ config, onConfigChange }: {
         <Settings size={15} />
       </button>
 
-      {open && (
+      {open && !isMobile && (
         <SessionConfigPanel
           config={config}
           onConfigChange={onConfigChange}
           onClose={() => setOpen(false)}
         />
+      )}
+
+      {isMobile && (
+        <BottomSheet open={open} onClose={() => setOpen(false)} title="Session Config">
+          <SessionConfigPanelContent config={config} onConfigChange={onConfigChange} />
+        </BottomSheet>
       )}
     </div>
   );
@@ -59,8 +68,6 @@ function SessionConfigPanel({ config, onConfigChange, onClose }: {
   onConfigChange: (changes: Record<string, unknown>) => void;
   onClose: () => void;
 }) {
-  const [systemPrompt, setSystemPrompt] = useState(config.system_prompt || "");
-
   return (
     <div style={{
       position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 100,
@@ -71,7 +78,6 @@ function SessionConfigPanel({ config, onConfigChange, onClose }: {
       boxShadow: "var(--shadow-card-hover)",
       padding: 0,
     }}>
-      {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "12px 16px",
@@ -80,19 +86,26 @@ function SessionConfigPanel({ config, onConfigChange, onClose }: {
         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)" }}>
           Session Config
         </span>
-        <button
-          onClick={onClose}
-          style={{
-            width: 24, height: 24, borderRadius: 6, border: "none",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "transparent", color: "var(--color-text-tertiary)",
-            cursor: "pointer",
-          }}
-        >
+        <button onClick={onClose} style={{
+          width: 24, height: 24, borderRadius: 6, border: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "transparent", color: "var(--color-text-tertiary)", cursor: "pointer",
+        }}>
           <X size={14} />
         </button>
       </div>
+      <SessionConfigPanelContent config={config} onConfigChange={onConfigChange} />
+    </div>
+  );
+}
 
+function SessionConfigPanelContent({ config, onConfigChange }: {
+  config: SessionConfig;
+  onConfigChange: (changes: Record<string, unknown>) => void;
+}) {
+  const [systemPrompt, setSystemPrompt] = useState(config.system_prompt || "");
+
+  return (
       <div style={{ padding: "16px" }}>
         {/* Permission Mode */}
         <div style={{ marginBottom: 20 }}>
@@ -191,7 +204,6 @@ function SessionConfigPanel({ config, onConfigChange, onClose }: {
           />
         </div>
       </div>
-    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import { HelpCircle, Check, ChevronRight, ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+import { useMobile } from "@/hooks/useMobile";
 
 interface QuestionOption {
   label: string;
@@ -32,6 +33,8 @@ export function AskUserQuestion({ input, onAnswer }: {
   const [customText, setCustomText] = useState("");
   const [notes, setNotes] = useState<Map<string, string>>(new Map());
   const [submitted, setSubmitted] = useState(false);
+
+  const { isMobile } = useMobile();
 
   if (questions.length === 0) return null;
 
@@ -173,13 +176,12 @@ export function AskUserQuestion({ input, onAnswer }: {
           return (
             <div style={{
               display: "flex", gap: 16, marginBottom: 16,
-              flexDirection: hasPreview ? "row" : "column",
-              ...(hasPreview ? {} : {}),
+              flexDirection: (hasPreview && !isMobile) ? "row" : "column",
             }}>
               {/* Options column */}
               <div style={{
                 display: "flex", flexDirection: "column", gap: 6,
-                flex: hasPreview ? "0 0 50%" : "1",
+                flex: (hasPreview && !isMobile) ? "0 0 50%" : "1",
                 minWidth: 0,
               }}>
                 {question.options.map((opt) => {
@@ -279,7 +281,7 @@ export function AskUserQuestion({ input, onAnswer }: {
               {/* Preview column (only if any option has preview) */}
               {hasPreview && (
                 <div style={{
-                  flex: "0 0 48%", minWidth: 0,
+                  flex: isMobile ? "1" : "0 0 48%", minWidth: 0,
                   borderRadius: 10, overflow: "hidden",
                   border: "1px solid var(--color-border-subtle)",
                   background: "var(--color-bg)",

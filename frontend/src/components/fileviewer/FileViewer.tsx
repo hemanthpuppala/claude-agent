@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Copy, Check, FileText, Image, FileWarning } from "lucide-react";
+import { useMobile } from "@/hooks/useMobile";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
@@ -11,6 +12,7 @@ export function FileViewer({ projectPath, filePath }: { projectPath: string; fil
   const [file, setFile] = useState<FileContent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { isMobile } = useMobile();
 
   useEffect(() => {
     setFile(null);
@@ -80,9 +82,11 @@ export function FileViewer({ projectPath, filePath }: { projectPath: string; fil
         <span style={{ fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--color-text)" }}>
           {basename(filePath)}
         </span>
-        <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-text-tertiary)" }}>
-          {filePath}
-        </span>
+        {!isMobile && (
+          <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {filePath}
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         {file.lines && (
           <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-text-tertiary)" }}>

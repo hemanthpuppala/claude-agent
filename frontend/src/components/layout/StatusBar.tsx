@@ -1,8 +1,10 @@
 import { useTabStore } from "@/stores/tabStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { formatCost } from "@/lib/utils";
+import { useMobile } from "@/hooks/useMobile";
 
 export function StatusBar() {
+  const { isMobile } = useMobile();
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const sessionId = activeTab?.sessionId || null;
   const session = useSessionStore((s) => sessionId ? s.getSession(sessionId) : undefined);
@@ -50,15 +52,19 @@ export function StatusBar() {
 
       <span style={{ color: "var(--color-success)" }}>{formatCost(session.totalCost)}</span>
 
-      <span style={{ color: "var(--color-text-tertiary)" }}>
-        {session.config.model
-          ? session.config.model.replace("claude-", "").replace(/-/g, " ")
-          : "opus 4.6"}
-      </span>
+      {!isMobile && (
+        <span style={{ color: "var(--color-text-tertiary)" }}>
+          {session.config.model
+            ? session.config.model.replace("claude-", "").replace(/-/g, " ")
+            : "opus 4.6"}
+        </span>
+      )}
 
-      <span style={{ color: "var(--color-text-tertiary)" }}>
-        {session.cwd.split("/").pop()}
-      </span>
+      {!isMobile && (
+        <span style={{ color: "var(--color-text-tertiary)" }}>
+          {session.cwd.split("/").pop()}
+        </span>
+      )}
 
       <span style={{ color: "var(--color-text-tertiary)" }}>
         {session.totalTurns} turns

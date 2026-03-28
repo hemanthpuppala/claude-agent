@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { ArrowUp, Square, Slash } from "lucide-react";
 import { CommandPalette } from "./CommandPalette";
+import { useMobile } from "@/hooks/useMobile";
 
 export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd }: {
   onSend: (prompt: string) => void;
@@ -12,6 +13,7 @@ export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd }: {
   const [value, setValue] = useState("");
   const [showCommands, setShowCommands] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { isMobile } = useMobile();
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
@@ -61,7 +63,8 @@ export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd }: {
   return (
     <div style={{
       borderTop: "1px solid var(--color-border-subtle)",
-      padding: "12px 24px 16px",
+      padding: isMobile ? "8px 12px 12px" : "12px 24px 16px",
+      paddingBottom: isMobile ? "calc(12px + env(safe-area-inset-bottom, 0px))" : "16px",
       background: "var(--color-bg)",
       position: "relative",
     }}>

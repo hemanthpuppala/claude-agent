@@ -137,7 +137,7 @@ export function CommandPalette({ filter, cwd, onSelect, onClose }: {
       ref={ref}
       style={{
         position: "absolute", bottom: "calc(100% + 8px)", left: 0, right: 0,
-        maxHeight: 380, overflowY: "auto",
+        maxHeight: "min(380px, 60dvh)", overflowY: "auto",
         background: "var(--color-bg-elevated)",
         border: "1px solid var(--color-border)",
         borderRadius: 12,

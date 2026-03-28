@@ -4,6 +4,7 @@ import { sessions as sessionsApi, projects as projectsApi } from "@/lib/api";
 import { useTabStore } from "@/stores/tabStore";
 import { formatCost, formatTimeAgo, truncate } from "@/lib/utils";
 import { PushOnboarding } from "@/components/notifications/PushOnboarding";
+import { useMobile } from "@/hooks/useMobile";
 import type { Session } from "@/lib/types";
 
 export function DashboardView() {
@@ -19,6 +20,7 @@ export function DashboardView() {
     return () => clearInterval(interval);
   }, []);
 
+  const { isMobile } = useMobile();
   const active = sessions.filter((s) => ["thinking", "waiting_permission"].includes(s.status));
   const recent = sessions.filter((s) => !["thinking", "waiting_permission"].includes(s.status));
 
@@ -55,7 +57,7 @@ export function DashboardView() {
 
   return (
     <div style={{ height: "100%", overflowY: "auto", background: "var(--color-bg)" }}>
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "48px 32px 64px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: isMobile ? "24px 16px 32px" : "48px 32px 64px" }}>
 
         {/* Hero */}
         <div style={{ marginBottom: 56 }}>
@@ -113,7 +115,7 @@ export function DashboardView() {
         {discovered.length > 0 && (
           <section style={{ marginBottom: 48 }}>
             <SectionHeader title="Projects" />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14, marginTop: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(200px, 1fr))", gap: isMobile ? 10 : 14, marginTop: 16 }}>
               {discovered.map((d) => (
                 <ProjectCard key={d.path} name={d.name} path={d.path} onClick={() => createSession(d.path)} />
               ))}

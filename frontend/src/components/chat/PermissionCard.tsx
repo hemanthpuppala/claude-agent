@@ -3,6 +3,7 @@ import { Terminal, Pencil, FilePlus, FileText, Globe, ExternalLink, Check, X } f
 import { TOOL_CATEGORIES, DEFAULT_TOOL, isDangerousCommand } from "@/lib/constants";
 import { AlertTriangle } from "lucide-react";
 import { truncate, basename } from "@/lib/utils";
+import { useMobile } from "@/hooks/useMobile";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   Terminal, Pencil, FilePlus, FileText, Globe, ExternalLink,
@@ -18,6 +19,7 @@ export function PermissionCard({ toolName, toolInput, requestId, onDecision }: {
   const [showDenyInput, setShowDenyInput] = useState(false);
   const [denyMessage, setDenyMessage] = useState("");
 
+  const { isMobile } = useMobile();
   const category = TOOL_CATEGORIES[toolName as keyof typeof TOOL_CATEGORIES] || DEFAULT_TOOL;
   const Icon = ICONS[category.icon] || Terminal;
   const isDangerous = toolName === "Bash" && isDangerousCommand(String(toolInput.command || ""));
@@ -108,7 +110,7 @@ export function PermissionCard({ toolName, toolInput, requestId, onDecision }: {
         )}
 
         {/* Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
           <button
             onClick={() => handleDecision("allow")}
             style={{

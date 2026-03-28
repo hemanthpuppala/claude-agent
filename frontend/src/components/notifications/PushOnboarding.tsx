@@ -58,10 +58,11 @@ export function PushOnboarding() {
 
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 12,
+      display: "flex", alignItems: "flex-start", gap: 12,
       padding: "12px 16px", borderRadius: 10, marginBottom: 24,
       background: "var(--color-bg-elevated)",
       border: "1px solid rgba(212,132,90,0.2)",
+      flexWrap: "wrap",
     }}>
       <div style={{
         width: 32, height: 32, borderRadius: 8, flexShrink: 0,
