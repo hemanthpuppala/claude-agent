@@ -11,6 +11,7 @@ import type { ServerMessage, AssistantMsg, ResultMsg, UserEchoMsg, PermissionReq
 
 export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string }) {
   const session = useSessionStore((s) => sessionId ? s.getSession(sessionId) : undefined);
+  const addMessage = useSessionStore((s) => s.addMessage);
   const { sendQuery, sendPermission, sendInterrupt } = useClaudeWebSocket(sessionId ?? null, cwd);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -21,6 +22,14 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
   const isConnected = !!session;
   const messages = session?.messages || [];
   const isRunning = session?.status === "thinking" || session?.status === "waiting_permission";
+
+  // Wrap sendQuery to also add user message locally (SDK doesn't echo it back)
+  const handleSend = (prompt: string) => {
+    if (sessionId) {
+      addMessage(sessionId, { type: "user_echo", content: prompt } as UserEchoMsg);
+    }
+    sendQuery(prompt);
+  };
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--color-bg)" }}>
@@ -62,7 +71,7 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
 
       {/* Input bar — ALWAYS visible */}
       <ChatInput
-        onSend={sendQuery}
+        onSend={handleSend}
         onInterrupt={sendInterrupt}
         isRunning={isRunning}
         disabled={!isConnected}
