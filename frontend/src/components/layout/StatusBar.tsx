@@ -1,14 +1,11 @@
 import { useTabStore } from "@/stores/tabStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import { useClaudeWebSocket } from "@/hooks/useWebSocket";
-import { SessionConfigButton } from "@/components/chat/SessionConfig";
 import { formatCost } from "@/lib/utils";
 
 export function StatusBar() {
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const sessionId = activeTab?.sessionId || null;
   const session = useSessionStore((s) => sessionId ? s.getSession(sessionId) : undefined);
-  const { sendConfig } = useClaudeWebSocket(null); // just to get sendConfig
 
   if (!session) {
     return (
@@ -43,7 +40,6 @@ export function StatusBar() {
       borderTop: "1px solid var(--color-border-subtle)",
       background: "var(--color-bg)",
     }}>
-      {/* Status */}
       <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span
           className={session.status === "thinking" ? "animate-pulse-dot" : ""}
@@ -52,34 +48,21 @@ export function StatusBar() {
         <span style={{ color: "var(--color-text-secondary)" }}>{statusLabel}</span>
       </span>
 
-      {/* Cost */}
       <span style={{ color: "var(--color-success)" }}>{formatCost(session.totalCost)}</span>
 
-      {/* Model */}
       <span style={{ color: "var(--color-text-tertiary)" }}>
         {session.config.model
           ? session.config.model.replace("claude-", "").replace(/-/g, " ")
           : "opus 4.6"}
       </span>
 
-      {/* Project */}
       <span style={{ color: "var(--color-text-tertiary)" }}>
         {session.cwd.split("/").pop()}
       </span>
 
-      {/* Turns */}
       <span style={{ color: "var(--color-text-tertiary)" }}>
         {session.totalTurns} turns
       </span>
-
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Config button */}
-      <SessionConfigButton
-        config={session.config}
-        onConfigChange={sendConfig}
-      />
     </div>
   );
 }

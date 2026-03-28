@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { getWsUrl } from "@/lib/utils";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -9,17 +9,28 @@ const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000];
 export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cleanedUpRef = useRef(false);
   const store = useSessionStore();
   const setReconnecting = useUIStore((s) => s.setReconnecting);
 
-  // Track the actual session ID returned by the server
-  const [connectedSessionId, setConnectedSessionId] = useState<string | null>(null);
+  // Stable ref to sessionId so onmessage handler always has current value
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+
+  // Track connected session ID from server
+  const connectedSessionIdRef = useRef<string | null>(null);
+
+  const getKey = useCallback(() => {
+    return connectedSessionIdRef.current || sessionIdRef.current || "";
+  }, []);
 
   const connect = useCallback(() => {
-    if (!sessionId && !cwd) return;
+    if (cleanedUpRef.current) return;
+    if (!sessionIdRef.current && !cwd) return;
 
     const params = new URLSearchParams();
-    if (sessionId) params.set("session_id", sessionId);
+    if (sessionIdRef.current) params.set("session_id", sessionIdRef.current);
     if (cwd) params.set("cwd", cwd);
 
     const url = getWsUrl(`/ws/claude?${params}`);
@@ -27,11 +38,14 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (cleanedUpRef.current) { ws.close(); return; }
       retryRef.current = 0;
       setReconnecting(false);
     };
 
     ws.onmessage = (event) => {
+      if (cleanedUpRef.current) return;
+
       let data: ServerMessage;
       try {
         data = JSON.parse(event.data);
@@ -42,9 +56,8 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
       switch (data.type) {
         case "session_info": {
           const info = data as SessionInfoMsg;
-          // Use the session ID from the tab prop as key (what ChatView looks up)
-          const key = sessionId || info.session_id;
-          setConnectedSessionId(key);
+          const key = sessionIdRef.current || info.session_id;
+          connectedSessionIdRef.current = key;
           store.initSession(key, {
             sdk_session_id: info.sdk_session_id,
             cwd: info.cwd,
@@ -56,22 +69,22 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
           break;
         }
         case "status": {
-          const key = connectedSessionId || sessionId || "";
+          const key = getKey();
           if (key) store.setStatus(key, (data as { status: string }).status as never);
           break;
         }
         case "replay_start": {
-          const key = connectedSessionId || sessionId || "";
+          const key = getKey();
           if (key) store.setReplaying(key, true);
           break;
         }
         case "replay_end": {
-          const key = connectedSessionId || sessionId || "";
+          const key = getKey();
           if (key) store.setReplaying(key, false);
           break;
         }
         case "config_updated": {
-          const key = connectedSessionId || sessionId || "";
+          const key = getKey();
           if (key) store.setConfig(key, (data as unknown as { config: SessionConfig }).config);
           break;
         }
@@ -81,7 +94,7 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
         case "system":
         case "permission_request":
         case "error": {
-          const key = connectedSessionId || sessionId || "";
+          const key = getKey();
           if (key) store.addMessage(key, data);
           break;
         }
@@ -89,33 +102,40 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
     };
 
     ws.onclose = () => {
+      if (cleanedUpRef.current) return;
       wsRef.current = null;
-      // Only show "reconnecting" after we've connected at least once
       if (retryRef.current > 0) {
         setReconnecting(true);
       }
-      // Cap retries at 10
       if (retryRef.current < 10) {
         const delay = RECONNECT_DELAYS[Math.min(retryRef.current, RECONNECT_DELAYS.length - 1)];
         retryRef.current++;
-        setTimeout(connect, delay);
+        retryTimerRef.current = setTimeout(connect, delay);
       }
     };
 
     ws.onerror = () => {
       ws.close();
     };
-  }, [sessionId, cwd, store, setReconnecting, connectedSessionId]);
+  }, [cwd, store, setReconnecting, getKey]);
 
   useEffect(() => {
+    cleanedUpRef.current = false;
     connect();
+
     return () => {
-      wsRef.current?.close();
-      wsRef.current = null;
+      // Mark as cleaned up so stale callbacks don't fire
+      cleanedUpRef.current = true;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
-    // Only reconnect when sessionId or cwd changes, not on every connectedSessionId change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, cwd]);
+  }, [connect]);
 
   const send = useCallback((data: Record<string, unknown>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -142,5 +162,5 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
     send({ type: "config", ...changes });
   }, [send]);
 
-  return { send, sendQuery, sendPermission, sendInterrupt, sendConfig, connectedSessionId };
+  return { send, sendQuery, sendPermission, sendInterrupt, sendConfig };
 }
