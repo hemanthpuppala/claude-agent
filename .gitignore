@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Database
+*.db
+data/
+
+# Backups (old frontend attempts)
+bkp_frontend/
+bkp_frontend_v2/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Logs
+*.log
+/tmp/
+
+# Lock files (keep uv.lock and package-lock.json)
+
+# Screenshots
+*.png
+
+# Test artifacts
+_test*.tmp
+testdir/

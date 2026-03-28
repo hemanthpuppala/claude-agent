@@ -1,0 +1,15 @@
+[project]
+name = "claude-code-web"
+version = "1.0.0"
+description = "Remote Claude Code terminal — persistent, autonomous, mobile-friendly"
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk>=0.1.50",
+    "fastapi>=0.135.2",
+    "uvicorn>=0.42.0",
+    "aiosqlite>=0.21.0",
+    "ptyprocess>=0.7.0",
+    "watchfiles>=1.1.1",
+    "pywebpush>=2.0.0",
+    "cryptography>=44.0",
+]
