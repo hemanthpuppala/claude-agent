@@ -87,7 +87,12 @@ def serialize_message(msg, seq: int | None = None) -> dict | None:
             "result": getattr(msg, "result", None),
         }
     elif isinstance(msg, UserMessage):
-        content = msg.content if isinstance(msg.content, str) else str(msg.content)
+        content = msg.content
+        # The SDK uses UserMessage for both actual user prompts AND internal
+        # tool-result feedback. When content is a list (of ToolResultBlock objects),
+        # it's an internal tool result — not a real user message. Skip it entirely.
+        if not isinstance(content, str):
+            return None
         result = {"type": "user_echo", "content": content}
     elif isinstance(msg, SystemMessage):
         result = {
