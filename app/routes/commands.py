@@ -8,21 +8,43 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 
 # Native built-in commands that Claude Code supports
+# These match the actual commands available in Claude Code's interactive terminal
 NATIVE_COMMANDS = [
-    {"name": "/commit", "description": "Create a git commit with a generated message", "scope": "builtin"},
-    {"name": "/review", "description": "Review code changes and suggest improvements", "scope": "builtin"},
-    {"name": "/pr", "description": "Create a pull request with generated title and description", "scope": "builtin"},
-    {"name": "/fix", "description": "Find and fix bugs in the codebase", "scope": "builtin"},
-    {"name": "/test", "description": "Write or run tests for the codebase", "scope": "builtin"},
-    {"name": "/explain", "description": "Explain how code works", "scope": "builtin"},
-    {"name": "/refactor", "description": "Refactor code for better quality", "scope": "builtin"},
-    {"name": "/docs", "description": "Generate or update documentation", "scope": "builtin"},
-    {"name": "/init", "description": "Initialize Claude Code for this project (create CLAUDE.md)", "scope": "builtin"},
-    {"name": "/clear", "description": "Clear conversation history", "scope": "builtin"},
-    {"name": "/help", "description": "Show available commands and help", "scope": "builtin"},
-    {"name": "/compact", "description": "Compact conversation context", "scope": "builtin"},
-    {"name": "/memory", "description": "View and manage memory files", "scope": "builtin"},
-    {"name": "/status", "description": "Show session status and cost", "scope": "builtin"},
+    # Session management
+    {"name": "/resume", "description": "Resume a previous conversation by session ID or search", "scope": "builtin", "category": "session"},
+    {"name": "/continue", "description": "Continue the most recent conversation in this directory", "scope": "builtin", "category": "session"},
+    {"name": "/compact", "description": "Compact conversation context to free up space", "scope": "builtin", "category": "session"},
+    {"name": "/clear", "description": "Clear conversation history and start fresh", "scope": "builtin", "category": "session"},
+    {"name": "/status", "description": "Show session status, cost, and model info", "scope": "builtin", "category": "session"},
+
+    # Model & config
+    {"name": "/model", "description": "Switch the model (opus, sonnet, haiku)", "scope": "builtin", "category": "config"},
+    {"name": "/permissions", "description": "Change permission mode (default, acceptEdits, bypass, plan)", "scope": "builtin", "category": "config"},
+    {"name": "/fast", "description": "Toggle fast mode for faster output", "scope": "builtin", "category": "config"},
+
+    # Memory & project
+    {"name": "/init", "description": "Initialize Claude Code for this project (create CLAUDE.md)", "scope": "builtin", "category": "project"},
+    {"name": "/memory", "description": "View and manage memory files", "scope": "builtin", "category": "project"},
+    {"name": "/context", "description": "Show current context usage and breakdown", "scope": "builtin", "category": "project"},
+
+    # Tools & integrations
+    {"name": "/mcp", "description": "Show MCP server status and connected tools", "scope": "builtin", "category": "tools"},
+    {"name": "/tools", "description": "Show available tools and their status", "scope": "builtin", "category": "tools"},
+    {"name": "/skills", "description": "Show available skills", "scope": "builtin", "category": "tools"},
+
+    # Code operations (sent as prompts with context)
+    {"name": "/commit", "description": "Create a git commit with a generated message", "scope": "builtin", "category": "code"},
+    {"name": "/pr", "description": "Create a pull request with generated title and description", "scope": "builtin", "category": "code"},
+    {"name": "/review", "description": "Review code changes and suggest improvements", "scope": "builtin", "category": "code"},
+    {"name": "/fix", "description": "Find and fix bugs in the codebase", "scope": "builtin", "category": "code"},
+    {"name": "/test", "description": "Write or run tests for the codebase", "scope": "builtin", "category": "code"},
+    {"name": "/explain", "description": "Explain how code works", "scope": "builtin", "category": "code"},
+    {"name": "/refactor", "description": "Refactor code for better quality", "scope": "builtin", "category": "code"},
+    {"name": "/docs", "description": "Generate or update documentation", "scope": "builtin", "category": "code"},
+
+    # Help
+    {"name": "/help", "description": "Show available commands and help", "scope": "builtin", "category": "help"},
+    {"name": "/bug", "description": "Report a bug or issue", "scope": "builtin", "category": "help"},
 ]
 
 
