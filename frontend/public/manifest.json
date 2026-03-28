@@ -1,0 +1,10 @@
+{
+  "name": "Claude Code Web",
+  "short_name": "Claude Code",
+  "description": "Remote Claude Code terminal — persistent, autonomous, mobile-friendly",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1e1c",
+  "theme_color": "#1e1e1c",
+  "icons": []
+}

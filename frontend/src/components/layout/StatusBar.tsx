@@ -1,16 +1,24 @@
 import { useTabStore } from "@/stores/tabStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useClaudeWebSocket } from "@/hooks/useWebSocket";
+import { SessionConfigButton } from "@/components/chat/SessionConfig";
 import { formatCost } from "@/lib/utils";
 
 export function StatusBar() {
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
-  const session = useSessionStore((s) =>
-    activeTab?.sessionId ? s.getSession(activeTab.sessionId) : undefined,
-  );
+  const sessionId = activeTab?.sessionId || null;
+  const session = useSessionStore((s) => sessionId ? s.getSession(sessionId) : undefined);
+  const { sendConfig } = useClaudeWebSocket(null); // just to get sendConfig
 
   if (!session) {
     return (
-      <div className="h-8 flex items-center px-4 text-[12px] font-mono text-[var(--color-text-tertiary)] border-t border-[var(--color-border-subtle)]">
+      <div style={{
+        height: 32, display: "flex", alignItems: "center",
+        padding: "0 16px", fontSize: 12, fontFamily: "var(--font-mono)",
+        color: "var(--color-text-tertiary)",
+        borderTop: "1px solid var(--color-border-subtle)",
+        background: "var(--color-bg)",
+      }}>
         No session connected
       </div>
     );
@@ -29,32 +37,49 @@ export function StatusBar() {
     "Ready";
 
   return (
-    <div className="h-8 flex items-center gap-4 px-4 text-[12px] font-mono border-t border-[var(--color-border-subtle)] bg-[var(--color-bg)]">
-      <span className="flex items-center gap-1.5">
+    <div style={{
+      height: 32, display: "flex", alignItems: "center", gap: 16,
+      padding: "0 16px", fontSize: 12, fontFamily: "var(--font-mono)",
+      borderTop: "1px solid var(--color-border-subtle)",
+      background: "var(--color-bg)",
+    }}>
+      {/* Status */}
+      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span
-          className={`w-2 h-2 rounded-full ${session.status === "thinking" ? "animate-pulse-dot" : ""}`}
-          style={{ backgroundColor: dotColor }}
+          className={session.status === "thinking" ? "animate-pulse-dot" : ""}
+          style={{ width: 7, height: 7, borderRadius: 99, background: dotColor }}
         />
-        <span className="text-[var(--color-text-secondary)]">{statusLabel}</span>
+        <span style={{ color: "var(--color-text-secondary)" }}>{statusLabel}</span>
       </span>
 
-      <span className="text-[var(--color-success)]">
-        {formatCost(session.totalCost)}
+      {/* Cost */}
+      <span style={{ color: "var(--color-success)" }}>{formatCost(session.totalCost)}</span>
+
+      {/* Model */}
+      <span style={{ color: "var(--color-text-tertiary)" }}>
+        {session.config.model
+          ? session.config.model.replace("claude-", "").replace(/-/g, " ")
+          : "opus 4.6"}
       </span>
 
-      {session.config.model && (
-        <span className="text-[var(--color-text-tertiary)]">
-          {session.config.model.replace("claude-", "").replace(/-/g, " ")}
-        </span>
-      )}
-
-      <span className="text-[var(--color-text-tertiary)]">
+      {/* Project */}
+      <span style={{ color: "var(--color-text-tertiary)" }}>
         {session.cwd.split("/").pop()}
       </span>
 
-      <span className="text-[var(--color-text-tertiary)]">
+      {/* Turns */}
+      <span style={{ color: "var(--color-text-tertiary)" }}>
         {session.totalTurns} turns
       </span>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Config button */}
+      <SessionConfigButton
+        config={session.config}
+        onConfigChange={sendConfig}
+      />
     </div>
   );
 }

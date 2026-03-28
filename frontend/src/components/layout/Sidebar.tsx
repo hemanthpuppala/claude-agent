@@ -3,6 +3,7 @@ import { useTabStore } from "@/stores/tabStore";
 import { SidebarHome } from "./SidebarHome";
 import { SidebarProjects } from "./SidebarProjects";
 import { SidebarFiles } from "./SidebarFiles";
+import { SidebarSettings } from "./SidebarSettings";
 
 export function Sidebar() {
   const panel = useUIStore((s) => s.sidebarPanel);
@@ -26,11 +27,7 @@ export function Sidebar() {
               Select a session or terminal tab to view its project files.
             </div>
       )}
-      {panel === "settings" && (
-        <div style={{ padding: 20, fontSize: 12, color: "var(--color-text-tertiary)" }}>
-          Settings — coming soon.
-        </div>
-      )}
+      {panel === "settings" && <SidebarSettings />}
     </div>
   );
 }
