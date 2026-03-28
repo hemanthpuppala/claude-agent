@@ -8,16 +8,7 @@ import type { AssistantMsg, ContentBlock } from "@/lib/types";
 
 export function MessageClaude({ message }: { message: AssistantMsg }) {
   return (
-    <div style={{ padding: "16px 0" }}>
-      {/* Label */}
-      <div style={{
-        fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)",
-        marginBottom: 8,
-      }}>
-        Claude
-      </div>
-
-      {/* Content blocks */}
+    <div style={{ padding: "12px 0" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {message.content.map((block, i) => (
           <ContentBlockRenderer key={i} block={block} />

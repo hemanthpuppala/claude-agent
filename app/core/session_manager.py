@@ -208,7 +208,7 @@ class SessionManager:
             can_use_tool=can_use_tool,
             cwd=session.cwd,
             resume=session.sdk_session_id,
-            include_partial_messages=True,
+            include_partial_messages=False,
             allowed_tools=session.allowed_tools,
             disallowed_tools=session.disallowed_tools,
             system_prompt=session.system_prompt,
