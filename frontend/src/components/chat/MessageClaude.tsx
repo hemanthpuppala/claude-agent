@@ -32,22 +32,30 @@ function ContentBlockRenderer({ block }: { block: ContentBlock }) {
     case "thinking":
       return <ThinkingBlock text={block.thinking || ""} />;
 
-    case "tool_use":
+    case "tool_use": {
+      const name = block.name || "Unknown";
+      // Hide internal SDK tools (ToolSearch is used internally to find tools)
+      if (name === "ToolSearch" || name === "ListMcpResourcesTool" || name === "ReadMcpResourceTool") return null;
       return (
         <ToolCard
-          toolName={block.name || "Unknown"}
+          toolName={name}
           toolInput={block.input || {}}
           toolId={block.id || ""}
         />
       );
+    }
 
-    case "tool_result":
+    case "tool_result": {
+      const content = block.content || "";
+      // Hide empty tool results (e.g. from internal tool_reference responses)
+      if (!content || content.trim() === "") return null;
       return (
         <ToolResult
-          content={block.content || ""}
+          content={content}
           isError={block.is_error || false}
         />
       );
+    }
 
     default:
       return null;

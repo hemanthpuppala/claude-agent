@@ -29,8 +29,31 @@ def serialize_content_block(block) -> dict:
         }
     if hasattr(block, "tool_use_id") and hasattr(block, "content"):
         content = block.content
-        if isinstance(content, str) and len(content) > MAX_TOOL_RESULT_LEN:
-            content = content[:MAX_TOOL_RESULT_LEN] + "\n... [truncated]"
+        if isinstance(content, str):
+            if len(content) > MAX_TOOL_RESULT_LEN:
+                content = content[:MAX_TOOL_RESULT_LEN] + "\n... [truncated]"
+        elif isinstance(content, list):
+            # Structured content — extract text or serialize to readable string
+            parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    if item.get("type") == "text":
+                        parts.append(item.get("text", ""))
+                    elif item.get("type") == "tool_reference":
+                        pass  # Internal SDK reference, skip
+                    else:
+                        parts.append(str(item))
+                elif isinstance(item, str):
+                    parts.append(item)
+                elif hasattr(item, "text"):
+                    parts.append(item.text)
+                else:
+                    parts.append(str(item))
+            content = "\n".join(parts) if parts else ""
+        elif content is not None:
+            content = str(content)
+        else:
+            content = ""
         return {
             "type": "tool_result",
             "tool_use_id": block.tool_use_id,
