@@ -5,6 +5,8 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { ReconnectionBanner } from "@/components/notifications/ReconnectionBanner";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import { ChatView } from "@/components/chat/ChatView";
+import { TerminalView } from "@/components/terminal/TerminalView";
+import { FileViewer } from "@/components/fileviewer/FileViewer";
 import { useTabStore } from "@/stores/tabStore";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -30,15 +32,11 @@ export function App() {
           {activeTab?.type === "session" && (
             <ChatView sessionId={activeTab.sessionId} cwd={activeTab.project} />
           )}
-          {activeTab?.type === "terminal" && (
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>
-              Terminal — coming next
-            </div>
+          {activeTab?.type === "terminal" && activeTab.cwd && (
+            <TerminalView cwd={activeTab.cwd} />
           )}
-          {activeTab?.type === "file" && (
-            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>
-              File viewer — coming next
-            </div>
+          {activeTab?.type === "file" && activeTab.projectPath && activeTab.filePath && (
+            <FileViewer projectPath={activeTab.projectPath} filePath={activeTab.filePath} />
           )}
         </div>
 

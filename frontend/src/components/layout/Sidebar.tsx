@@ -1,9 +1,15 @@
 import { useUIStore } from "@/stores/uiStore";
+import { useTabStore } from "@/stores/tabStore";
 import { SidebarHome } from "./SidebarHome";
 import { SidebarProjects } from "./SidebarProjects";
+import { SidebarFiles } from "./SidebarFiles";
 
 export function Sidebar() {
   const panel = useUIStore((s) => s.sidebarPanel);
+  const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+
+  // Determine the project path for the file explorer
+  const projectPath = activeTab?.project || activeTab?.cwd || activeTab?.projectPath || "";
 
   return (
     <div style={{
@@ -14,9 +20,11 @@ export function Sidebar() {
       {panel === "home" && <SidebarHome />}
       {panel === "projects" && <SidebarProjects />}
       {panel === "files" && (
-        <div style={{ padding: 20, fontSize: 12, color: "var(--color-text-tertiary)" }}>
-          Select a session tab to view its project files.
-        </div>
+        projectPath
+          ? <SidebarFiles projectPath={projectPath} />
+          : <div style={{ padding: 20, fontSize: 12, color: "var(--color-text-tertiary)" }}>
+              Select a session or terminal tab to view its project files.
+            </div>
       )}
       {panel === "settings" && (
         <div style={{ padding: 20, fontSize: 12, color: "var(--color-text-tertiary)" }}>
