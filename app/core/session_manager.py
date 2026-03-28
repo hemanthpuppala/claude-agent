@@ -276,17 +276,32 @@ class SessionManager:
                 if msg_type == "system" and serialized.get("subtype") in ("init", "config"):
                     continue
 
-                # Persist durable messages
-                session.message_seq += 1
-                session.message_log.append(serialized)
-                if len(session.message_log) > MESSAGE_BUFFER_SIZE:
-                    session.message_log = session.message_log[-MESSAGE_BUFFER_SIZE:]
+                # Deduplicate: SDK re-emits assistant messages after permission.
+                # If the last message in the buffer has the same type and content, replace it.
+                is_dup = False
+                if session.message_log and msg_type == "assistant":
+                    last = session.message_log[-1]
+                    if last.get("type") == "assistant":
+                        last_content = json.dumps(last.get("content", []), sort_keys=True)
+                        new_content = json.dumps(serialized.get("content", []), sort_keys=True)
+                        if last_content == new_content:
+                            is_dup = True
+                            serialized["seq"] = last.get("seq", session.message_seq)
+                            session.message_log[-1] = serialized
+
+                if not is_dup:
+                    serialized["seq"] = session.message_seq
+                    session.message_seq += 1
+                    session.message_log.append(serialized)
+                    if len(session.message_log) > MESSAGE_BUFFER_SIZE:
+                        session.message_log = session.message_log[-MESSAGE_BUFFER_SIZE:]
 
                 await db_append_message(
                     self._db, session.id, serialized["seq"],
                     msg_type, json.dumps(serialized),
                 )
-                await self._broadcast(session, serialized)
+                if not is_dup:
+                    await self._broadcast(session, serialized)
 
                 # Handle result messages
                 if isinstance(msg, ResultMessage):

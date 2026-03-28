@@ -93,7 +93,24 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     const sessions = new Map(get().sessions);
     const state = sessions.get(id);
     if (!state) return;
-    sessions.set(id, { ...state, messages: [...state.messages, msg] });
+
+    // Deduplicate by seq: if a message with the same seq already exists, replace it.
+    // The SDK re-emits assistant messages after permission resolution.
+    const seq = (msg as { seq?: number }).seq;
+    let updated: ServerMessage[];
+    if (seq !== undefined && seq !== null) {
+      const existingIdx = state.messages.findIndex((m) => (m as { seq?: number }).seq === seq);
+      if (existingIdx >= 0) {
+        updated = [...state.messages];
+        updated[existingIdx] = msg;
+      } else {
+        updated = [...state.messages, msg];
+      }
+    } else {
+      updated = [...state.messages, msg];
+    }
+
+    sessions.set(id, { ...state, messages: updated });
     set({ sessions });
   },
 
