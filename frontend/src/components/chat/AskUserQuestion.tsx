@@ -95,15 +95,18 @@ export function AskUserQuestion({ input, onAnswer }: {
 
   return (
     <div style={{
-      margin: "12px 0", borderRadius: 12, overflow: "hidden",
+      margin: "12px 0", borderRadius: 12,
       border: "1px solid var(--color-border)",
       background: "var(--color-bg-elevated)",
       boxShadow: "var(--shadow-card)",
+      display: "flex", flexDirection: "column",
+      maxHeight: isMobile ? "70dvh" : "none",
+      overflow: "hidden",
     }}>
       {/* Accent bar */}
-      <div style={{ height: 3, background: "var(--color-accent)" }} />
+      <div style={{ height: 3, background: "var(--color-accent)", flexShrink: 0 }} />
 
-      <div style={{ padding: 20 }}>
+      <div style={{ padding: isMobile ? 16 : 20, overflowY: "auto", flex: 1 }}>
         {/* Header with step indicator */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <HelpCircle size={18} color="var(--color-accent)" />
@@ -307,71 +310,73 @@ export function AskUserQuestion({ input, onAnswer }: {
           );
         })()}
 
-        {/* Navigation */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          borderTop: "1px solid var(--color-border-subtle)",
-          paddingTop: 16,
-        }}>
-          {currentStep > 0 && (
-            <button
-              onClick={() => setCurrentStep(currentStep - 1)}
-              style={{
-                display: "flex", alignItems: "center", gap: 4,
-                padding: "8px 14px", borderRadius: 8, border: "none",
-                background: "transparent", color: "var(--color-text-secondary)",
-                fontSize: 13, cursor: "pointer",
-              }}
-            >
-              <ChevronLeft size={14} /> Back
-            </button>
-          )}
+      </div>
 
+      {/* Navigation — outside scrollable area, always visible */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+        borderTop: "1px solid var(--color-border-subtle)",
+        padding: isMobile ? "12px 16px" : "12px 20px",
+        flexWrap: isMobile ? "wrap" : "nowrap",
+      }}>
+        {currentStep > 0 && (
           <button
-            onClick={() => {
-              if (onAnswer) onAnswer("skipped");
-              setSubmitted(true);
-            }}
+            onClick={() => setCurrentStep(currentStep - 1)}
             style={{
-              padding: "8px 14px", borderRadius: 8, border: "none",
-              background: "transparent", color: "var(--color-text-tertiary)",
-              fontSize: 12, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "10px 14px", borderRadius: 8, border: "none",
+              background: "transparent", color: "var(--color-text-secondary)",
+              fontSize: 13, cursor: "pointer", minHeight: 44,
             }}
           >
-            Skip{questions.length > 1 ? " all" : ""}
+            <ChevronLeft size={14} /> Back
           </button>
+        )}
 
-          <div style={{ flex: 1 }} />
+        <button
+          onClick={() => {
+            if (onAnswer) onAnswer("skipped");
+            setSubmitted(true);
+          }}
+          style={{
+            padding: "10px 14px", borderRadius: 8, border: "none",
+            background: "transparent", color: "var(--color-text-tertiary)",
+            fontSize: 12, cursor: "pointer", minHeight: 44,
+          }}
+        >
+          Skip{questions.length > 1 ? " all" : ""}
+        </button>
 
-          {!isLast ? (
-            <button
-              onClick={() => setCurrentStep(currentStep + 1)}
-              disabled={selectedForStep.size === 0 && !customText.trim()}
-              style={{
-                display: "flex", alignItems: "center", gap: 4,
-                padding: "8px 18px", borderRadius: 8, border: "none",
-                background: "var(--color-accent)", color: "#fff",
-                fontSize: 13, fontWeight: 600, cursor: "pointer",
-                opacity: (selectedForStep.size === 0 && !customText.trim()) ? 0.5 : 1,
-              }}
-            >
-              Next <ChevronRight size={14} />
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={selectedForStep.size === 0 && !customText.trim()}
-              style={{
-                padding: "8px 22px", borderRadius: 8, border: "none",
-                background: "var(--color-accent)", color: "#fff",
-                fontSize: 13, fontWeight: 600, cursor: "pointer",
-                opacity: (selectedForStep.size === 0 && !customText.trim()) ? 0.5 : 1,
-              }}
-            >
-              Submit
-            </button>
-          )}
-        </div>
+        <div style={{ flex: 1 }} />
+
+        {!isLast ? (
+          <button
+            onClick={() => setCurrentStep(currentStep + 1)}
+            disabled={false}
+            style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "10px 20px", borderRadius: 8, border: "none",
+              background: "var(--color-accent)", color: "#fff",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", minHeight: 44,
+              opacity: 1,
+            }}
+          >
+            Next <ChevronRight size={14} />
+          </button>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            disabled={false}
+            style={{
+              padding: "10px 24px", borderRadius: 8, border: "none",
+              background: "var(--color-accent)", color: "#fff",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", minHeight: 44,
+              opacity: 1,
+            }}
+          >
+            Submit
+          </button>
+        )}
       </div>
     </div>
   );
