@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCard } from "./ToolCard";
 import { ToolResult } from "./ToolResult";
+import { AskUserQuestion } from "./AskUserQuestion";
 import type { AssistantMsg, ContentBlock } from "@/lib/types";
 
 export function MessageClaude({ message }: { message: AssistantMsg }) {
@@ -34,8 +35,12 @@ function ContentBlockRenderer({ block }: { block: ContentBlock }) {
 
     case "tool_use": {
       const name = block.name || "Unknown";
-      // Hide internal SDK tools (ToolSearch is used internally to find tools)
+      // Hide internal SDK tools
       if (name === "ToolSearch" || name === "ListMcpResourcesTool" || name === "ReadMcpResourceTool") return null;
+      // AskUserQuestion gets a special interactive renderer
+      if (name === "AskUserQuestion") {
+        return <AskUserQuestion input={block.input || {}} />;
+      }
       return (
         <ToolCard
           toolName={name}
