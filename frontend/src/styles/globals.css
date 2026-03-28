@@ -170,6 +170,118 @@ code, pre, kbd {
   border-radius: var(--radius-full);
 }
 
+/* ===== Mobile animations ===== */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+/* ===== Claude markdown rendering ===== */
+
+.claude-markdown h1 { font-size: 1.5em; font-weight: 700; margin: 20px 0 10px; color: var(--color-text); }
+.claude-markdown h2 { font-size: 1.3em; font-weight: 700; margin: 18px 0 8px; color: var(--color-text); }
+.claude-markdown h3 { font-size: 1.1em; font-weight: 600; margin: 16px 0 6px; color: var(--color-text); }
+.claude-markdown h4 { font-size: 1em; font-weight: 600; margin: 14px 0 4px; color: var(--color-text); }
+
+.claude-markdown p { margin: 8px 0; }
+.claude-markdown p:first-child { margin-top: 0; }
+.claude-markdown p:last-child { margin-bottom: 0; }
+
+.claude-markdown ul, .claude-markdown ol {
+  margin: 8px 0; padding-left: 24px;
+}
+.claude-markdown li { margin: 4px 0; }
+.claude-markdown li::marker { color: var(--color-text-tertiary); }
+
+.claude-markdown a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.claude-markdown a:hover { text-decoration: underline; }
+
+.claude-markdown blockquote {
+  margin: 10px 0;
+  padding: 8px 16px;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.claude-markdown code:not(pre code) {
+  background: var(--color-bg-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  font-family: var(--font-mono);
+}
+
+.claude-markdown pre {
+  margin: 10px 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+}
+
+.claude-markdown pre code {
+  display: block;
+  padding: 16px !important;
+  background: var(--color-bg-elevated) !important;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.claude-markdown table {
+  width: 100%;
+  margin: 10px 0;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.claude-markdown th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--color-border);
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg-elevated);
+}
+.claude-markdown td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+}
+.claude-markdown tr:hover td {
+  background: var(--color-bg-elevated);
+}
+
+.claude-markdown hr {
+  margin: 20px 0;
+  border: none;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.claude-markdown img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+
+.claude-markdown strong { color: var(--color-text); }
+.claude-markdown em { font-style: italic; }
+
 /* ===== Code highlight overrides ===== */
 
 pre code.hljs {
@@ -179,6 +291,27 @@ pre code.hljs {
   font-size: 13px;
   line-height: 1.5;
   overflow-x: auto;
+}
+
+/* ===== Touch targets ===== */
+
+@media (max-width: 640px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Smaller scrollbar on mobile */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+}
+
+/* ===== Safe area ===== */
+
+body {
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
 }
 
 /* ===== Reduced motion ===== */

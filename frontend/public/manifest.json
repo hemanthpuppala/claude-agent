@@ -4,7 +4,9 @@
   "description": "Remote Claude Code terminal — persistent, autonomous, mobile-friendly",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#1e1e1c",
   "theme_color": "#1e1e1c",
+  "categories": ["developer", "productivity"],
   "icons": []
 }
