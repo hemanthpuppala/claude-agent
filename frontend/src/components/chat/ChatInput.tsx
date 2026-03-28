@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback } from "react";
 import { ArrowUp, Square } from "lucide-react";
 
-export function ChatInput({ onSend, onInterrupt, isRunning }: {
+export function ChatInput({ onSend, onInterrupt, isRunning, disabled }: {
   onSend: (prompt: string) => void;
   onInterrupt: () => void;
   isRunning: boolean;
+  disabled?: boolean;
 }) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -22,7 +23,7 @@ export function ChatInput({ onSend, onInterrupt, isRunning }: {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (isRunning) return;
+      if (isRunning || disabled) return;
       handleSend();
     }
   };
@@ -69,7 +70,7 @@ export function ChatInput({ onSend, onInterrupt, isRunning }: {
 
           <button
             onClick={isRunning ? onInterrupt : handleSend}
-            disabled={!isRunning && !hasText}
+            disabled={disabled || (!isRunning && !hasText)}
             style={{
               width: 32, height: 32, borderRadius: 10, border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",

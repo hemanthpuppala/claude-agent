@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { getWsUrl } from "@/lib/utils";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -11,6 +11,9 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
   const retryRef = useRef(0);
   const store = useSessionStore();
   const setReconnecting = useUIStore((s) => s.setReconnecting);
+
+  // Track the actual session ID returned by the server
+  const [connectedSessionId, setConnectedSessionId] = useState<string | null>(null);
 
   const connect = useCallback(() => {
     if (!sessionId && !cwd) return;
@@ -36,12 +39,13 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
         return;
       }
 
-      const sid = sessionId || "";
-
       switch (data.type) {
         case "session_info": {
           const info = data as SessionInfoMsg;
-          store.initSession(info.session_id, {
+          // Use the session ID from the tab prop as key (what ChatView looks up)
+          const key = sessionId || info.session_id;
+          setConnectedSessionId(key);
+          store.initSession(key, {
             sdk_session_id: info.sdk_session_id,
             cwd: info.cwd,
             status: info.status,
@@ -51,29 +55,36 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
           });
           break;
         }
-        case "status":
-          if (sid) store.setStatus(sid, (data as { status: string }).status as never);
+        case "status": {
+          const key = connectedSessionId || sessionId || "";
+          if (key) store.setStatus(key, (data as { status: string }).status as never);
           break;
-        case "replay_start":
-          if (sid) store.setReplaying(sid, true);
+        }
+        case "replay_start": {
+          const key = connectedSessionId || sessionId || "";
+          if (key) store.setReplaying(key, true);
           break;
-        case "replay_end":
-          if (sid) store.setReplaying(sid, false);
+        }
+        case "replay_end": {
+          const key = connectedSessionId || sessionId || "";
+          if (key) store.setReplaying(key, false);
           break;
-        case "config_updated":
-          if (sid) store.setConfig(sid, (data as unknown as { config: SessionConfig }).config);
+        }
+        case "config_updated": {
+          const key = connectedSessionId || sessionId || "";
+          if (key) store.setConfig(key, (data as unknown as { config: SessionConfig }).config);
           break;
-        case "stream":
-          // TODO: handle partial streaming text
-          break;
+        }
         case "assistant":
         case "result":
         case "user_echo":
         case "system":
         case "permission_request":
-        case "error":
-          if (sid) store.addMessage(sid, data);
+        case "error": {
+          const key = connectedSessionId || sessionId || "";
+          if (key) store.addMessage(key, data);
           break;
+        }
       }
     };
 
@@ -88,7 +99,7 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
     ws.onerror = () => {
       ws.close();
     };
-  }, [sessionId, cwd, store, setReconnecting]);
+  }, [sessionId, cwd, store, setReconnecting, connectedSessionId]);
 
   useEffect(() => {
     connect();
@@ -96,7 +107,9 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [connect]);
+    // Only reconnect when sessionId or cwd changes, not on every connectedSessionId change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, cwd]);
 
   const send = useCallback((data: Record<string, unknown>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -123,5 +136,5 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
     send({ type: "config", ...changes });
   }, [send]);
 
-  return { send, sendQuery, sendPermission, sendInterrupt, sendConfig };
+  return { send, sendQuery, sendPermission, sendInterrupt, sendConfig, connectedSessionId };
 }
