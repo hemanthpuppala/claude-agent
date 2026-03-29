@@ -1,6 +1,7 @@
 import { useUIStore } from "@/stores/uiStore";
 import { useTabStore } from "@/stores/tabStore";
 import { SidebarHome } from "./SidebarHome";
+import { SidebarTerminals } from "./SidebarTerminals";
 import { SidebarProjects } from "./SidebarProjects";
 import { SidebarFiles } from "./SidebarFiles";
 import { SidebarSettings } from "./SidebarSettings";
@@ -9,7 +10,6 @@ export function Sidebar() {
   const panel = useUIStore((s) => s.sidebarPanel);
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
 
-  // Determine the project path for the file explorer
   const projectPath = activeTab?.project || activeTab?.cwd || activeTab?.projectPath || "";
 
   return (
@@ -18,7 +18,8 @@ export function Sidebar() {
       borderRight: "1px solid var(--color-border-subtle)",
       background: "var(--color-bg-elevated)",
     }}>
-      {panel === "home" && <SidebarHome />}
+      {panel === "sessions" && <SidebarHome />}
+      {panel === "terminals" && <SidebarTerminals />}
       {panel === "projects" && <SidebarProjects />}
       {panel === "files" && (
         projectPath

@@ -1,10 +1,11 @@
-import { Home, FolderOpen, Zap, Settings } from "lucide-react";
+import { Zap, Terminal, FolderOpen, Files, Settings } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 
-const topItems = [
-  { id: "home" as const, icon: Home, label: "Dashboard" },
+const items = [
+  { id: "sessions" as const, icon: Zap, label: "Claude Sessions" },
+  { id: "terminals" as const, icon: Terminal, label: "Terminals" },
   { id: "projects" as const, icon: FolderOpen, label: "Projects" },
-  { id: "files" as const, icon: Zap, label: "Files" },
+  { id: "files" as const, icon: Files, label: "Workspace Files" },
 ] as const;
 
 export function ActivityBar() {
@@ -22,7 +23,7 @@ export function ActivityBar() {
       borderRight: "1px solid var(--color-border-subtle)",
       background: "var(--color-bg)",
     }}>
-      {topItems.map(({ id, icon: Icon, label }) => (
+      {items.map(({ id, icon: Icon, label }) => (
         <ActivityButton key={id} active={isActive(id)} label={label} onClick={() => setSidebarPanel(id)}>
           <Icon size={18} strokeWidth={isActive(id) ? 2.5 : 1.5} />
         </ActivityButton>

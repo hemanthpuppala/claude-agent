@@ -1,10 +1,11 @@
-import { Home, FolderOpen, Settings } from "lucide-react";
+import { Zap, Terminal, FolderOpen, Settings } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 
 const items = [
-  { id: "home" as const, icon: Home, label: "Home" },
+  { id: "sessions" as const, icon: Zap, label: "Sessions" },
+  { id: "terminals" as const, icon: Terminal, label: "Terminals" },
   { id: "projects" as const, icon: FolderOpen, label: "Projects" },
-  { id: "settings" as const, icon: Settings, label: "Settings" },
+  { id: "settings" as const, icon: Settings, label: "More" },
 ] as const;
 
 export function MobileNav() {

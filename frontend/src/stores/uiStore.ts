@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type SidebarPanel = "home" | "projects" | "files" | "settings";
+type SidebarPanel = "sessions" | "terminals" | "projects" | "files" | "settings";
 
 interface UIStore {
   sidebarOpen: boolean;
@@ -17,7 +17,7 @@ interface UIStore {
 
 export const useUIStore = create<UIStore>()((set, get) => ({
   sidebarOpen: true,
-  sidebarPanel: "home",
+  sidebarPanel: "sessions",
   configOpen: false,
   reconnecting: false,
 
