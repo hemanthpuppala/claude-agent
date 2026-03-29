@@ -91,24 +91,11 @@ async def ws_terminal(websocket: WebSocket):
         cwd = os.path.expanduser("~")
 
     tmux_bin = shutil.which("tmux")
-    # Use custom name from query param, or default to project-based name
     session_name = websocket.query_params.get("name", "")
     if not session_name:
-        project = cwd.rstrip("/").split("/")[-1] or "home"
-        # Count existing sessions for this project to auto-increment
-        n = 1
-        if tmux_bin:
-            try:
-                result = subprocess.run(
-                    [tmux_bin, "list-sessions", "-F", "#{session_name}"],
-                    capture_output=True, text=True, timeout=3,
-                )
-                existing = result.stdout.strip().split("\n") if result.returncode == 0 else []
-                while f"{project}-{n}" in existing:
-                    n += 1
-            except Exception:
-                pass
-        session_name = f"{project}-{n}"
+        await websocket.send_text("Terminal name is required.")
+        await websocket.close()
+        return
 
     env = os.environ.copy()
     env["TERM"] = "xterm-256color"

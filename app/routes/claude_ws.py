@@ -20,7 +20,7 @@ async def ws_claude(websocket: WebSocket):
     session_id = websocket.query_params.get("session_id")
     cwd = websocket.query_params.get("cwd", DEFAULT_PROJECT_ROOT)
 
-    # Find or create session
+    # Find existing session — never auto-create from WebSocket
     session = None
     if session_id:
         session = manager.get(session_id)
@@ -31,9 +31,10 @@ async def ws_claude(websocket: WebSocket):
                 pass
 
     if not session:
-        if not os.path.isdir(cwd):
-            cwd = os.path.expanduser("~")
-        session = await manager.create(cwd)
+        # No session found — tell the browser instead of auto-creating
+        await websocket.send_json({"type": "error", "message": "Session not found. Create one from the dashboard."})
+        await websocket.close()
+        return
 
     # Attach browser
     manager.attach(session, websocket)
