@@ -4,18 +4,37 @@ import { TOOL_CATEGORIES, DEFAULT_TOOL, isDangerousCommand } from "@/lib/constan
 import { AlertTriangle } from "lucide-react";
 import { truncate, basename } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
+import { useSessionStore } from "@/stores/sessionStore";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   Terminal, Pencil, FilePlus, FileText, Globe, ExternalLink,
 };
 
-export function PermissionCard({ toolName, toolInput, requestId, onDecision }: {
+export function PermissionCard({ toolName, toolInput, requestId, onDecision, sessionId }: {
   toolName: string;
   toolInput: Record<string, unknown>;
   requestId: string;
   onDecision: (requestId: string, decision: string, message?: string) => void;
+  sessionId?: string;
 }) {
-  const [resolved, setResolved] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<string | null>(() => {
+    // Check if this permission was already resolved (e.g. on replay)
+    // If there are messages after this permission_request, it was resolved
+    if (!sessionId) return null;
+    const session = useSessionStore.getState().getSession(sessionId);
+    if (!session) return null;
+    const msgs = session.messages;
+    const permIdx = msgs.findIndex(m =>
+      m.type === "permission_request" &&
+      (m as { request_id?: string }).request_id === requestId
+    );
+    if (permIdx < 0) return null;
+    // If there are result/assistant messages after this permission, it was allowed
+    for (let i = permIdx + 1; i < msgs.length; i++) {
+      if (msgs[i].type === "result" || msgs[i].type === "assistant") return "allow";
+    }
+    return null;
+  });
   const [showDenyInput, setShowDenyInput] = useState(false);
   const [denyMessage, setDenyMessage] = useState("");
 

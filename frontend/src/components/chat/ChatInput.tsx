@@ -3,12 +3,22 @@ import { ArrowUp, Square, Slash } from "lucide-react";
 import { CommandPalette } from "./CommandPalette";
 import { useMobile } from "@/hooks/useMobile";
 
-export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd }: {
+// Client-side slash commands — NOT sent to Claude
+const CLIENT_COMMANDS: Record<string, string> = {
+  "/model": "Use the permission mode toggle in the status bar to change models.",
+  "/clear": "Clear is not yet implemented. Refresh the page to start fresh.",
+  "/status": "Status is shown in the status bar below.",
+  "/compact": "Compact is handled automatically by the SDK.",
+  "/help": "Type / to see all available commands. Use the status bar to change permissions and model.",
+};
+
+export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd, onClientCommand }: {
   onSend: (prompt: string) => void;
   onInterrupt: () => void;
   isRunning: boolean;
   disabled?: boolean;
   cwd?: string;
+  onClientCommand?: (message: string) => void;
 }) {
   const [value, setValue] = useState("");
   const [showCommands, setShowCommands] = useState(false);
@@ -18,13 +28,23 @@ export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd }: {
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
     if (!trimmed) return;
+
+    // Check for client-side commands
+    const cmd = trimmed.split(" ")[0].toLowerCase();
+    if (CLIENT_COMMANDS[cmd]) {
+      if (onClientCommand) onClientCommand(CLIENT_COMMANDS[cmd]);
+      setValue("");
+      setShowCommands(false);
+      return;
+    }
+
     onSend(trimmed);
     setValue("");
     setShowCommands(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [value, onSend]);
+  }, [value, onSend, onClientCommand]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

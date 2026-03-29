@@ -24,10 +24,16 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
   const messages = session?.messages || [];
   const isRunning = session?.status === "thinking" || session?.status === "waiting_permission";
 
-  // User message is stored and broadcast by the backend via send_query.
-  // No need to add locally — it arrives via WebSocket broadcast.
+  const addMessage = useSessionStore((s) => s.addMessage);
+
   const handleSend = (prompt: string) => {
     sendQuery(prompt);
+  };
+
+  const handleClientCommand = (message: string) => {
+    if (sessionId) {
+      addMessage(sessionId, { type: "system", subtype: "client", data: message } as ServerMessage);
+    }
   };
 
   return (
@@ -75,6 +81,7 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
         isRunning={isRunning}
         disabled={!isConnected}
         cwd={session?.cwd || cwd}
+        onClientCommand={handleClientCommand}
       />
     </div>
   );
@@ -100,13 +107,25 @@ function MessageRenderer({ message, onPermission, sessionId }: {
           toolInput={perm.tool_input}
           requestId={perm.request_id}
           onDecision={onPermission}
+          sessionId={sessionId}
         />
       );
     }
     case "system": {
       const sysMsg = message as { subtype?: string; data?: string };
-      // Hide init, config, and internal system messages
       if (sysMsg.subtype === "init" || sysMsg.subtype === "config" || !sysMsg.subtype) return null;
+      // Client-side command responses
+      if (sysMsg.subtype === "client") {
+        return (
+          <div style={{
+            margin: "8px 0", padding: "10px 14px", borderRadius: 8,
+            background: "var(--color-bg-elevated)", border: "1px solid var(--color-border-subtle)",
+            fontSize: 13, color: "var(--color-text-secondary)",
+          }}>
+            {sysMsg.data}
+          </div>
+        );
+      }
       return (
         <div style={{
           display: "flex", alignItems: "center", gap: 12,

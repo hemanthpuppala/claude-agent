@@ -66,7 +66,10 @@ export function App() {
         {activeTab?.type === "session" && <StatusBar />}
 
         {/* Bottom Nav */}
-        <MobileNav />
+        <MobileNav onOpenPanel={(panel) => {
+          useUIStore.getState().setSidebarPanel(panel as "sessions" | "terminals" | "projects" | "settings");
+          setMobileMenuOpen(true);
+        }} />
 
         {/* Sidebar as slide-over */}
         {mobileMenuOpen && (

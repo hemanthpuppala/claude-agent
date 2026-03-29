@@ -8,10 +8,8 @@ const items = [
   { id: "settings" as const, icon: Settings, label: "More" },
 ] as const;
 
-export function MobileNav() {
+export function MobileNav({ onOpenPanel }: { onOpenPanel: (panel: string) => void }) {
   const panel = useUIStore((s) => s.sidebarPanel);
-  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
-  const setSidebarPanel = useUIStore((s) => s.setSidebarPanel);
 
   return (
     <div style={{
@@ -23,11 +21,11 @@ export function MobileNav() {
       flexShrink: 0,
     }}>
       {items.map(({ id, icon: Icon, label }) => {
-        const isActive = panel === id && sidebarOpen;
+        const isActive = panel === id;
         return (
           <button
             key={id}
-            onClick={() => setSidebarPanel(id)}
+            onClick={() => onOpenPanel(id)}
             style={{
               display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
               padding: "6px 16px", border: "none", background: "transparent",
