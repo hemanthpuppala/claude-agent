@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { Terminal, Plus, ChevronDown, ChevronRight, FolderOpen, Trash2 } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Terminal, Plus, ChevronDown, ChevronRight, FolderOpen, Trash2, MoreHorizontal, Pencil, Pin } from "lucide-react";
 import { terminals as terminalsApi } from "@/lib/api";
 import { useTabStore } from "@/stores/tabStore";
 import { TerminalNamePrompt } from "@/components/terminal/TerminalNamePrompt";
@@ -144,55 +144,16 @@ export function SidebarTerminals() {
 
             {/* Terminal items */}
             {expanded.has(project) && terms.map((t) => (
-              <div
+              <TerminalItem
                 key={t.name}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "7px 12px 7px 32px",
-                  transition: "background 0.1s",
+                session={t}
+                onAttach={() => attachTerminal(t)}
+                onKill={() => killTerminal(t.name)}
+                onRename={async (newName) => {
+                  await terminalsApi.rename(t.name, newName);
+                  load();
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
-                <button
-                  onClick={() => attachTerminal(t)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8, flex: 1,
-                    border: "none", background: "transparent", cursor: "pointer",
-                    textAlign: "left", padding: 0,
-                  }}
-                >
-                  <Terminal size={13} color="var(--color-tool-execute)" />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: 13, fontWeight: 500, color: "var(--color-text)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {t.name}
-                    </div>
-                    <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--color-text-tertiary)" }}>
-                      {new Date(t.created_at * 1000).toLocaleString([], {
-                        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-                      })}
-                    </div>
-                  </div>
-                </button>
-
-                {/* Kill button */}
-                <button
-                  onClick={() => killTerminal(t.name)}
-                  title="Kill terminal"
-                  style={{
-                    width: 24, height: 24, borderRadius: 4, border: "none",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "transparent", color: "var(--color-text-tertiary)",
-                    cursor: "pointer", opacity: 0, transition: "opacity 0.15s",
-                  }}
-                  className="term-kill-btn"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
+              />
             ))}
           </div>
         ))}
@@ -208,12 +169,6 @@ export function SidebarTerminals() {
         )}
       </div>
 
-      {/* Kill button hover CSS */}
-      <style>{`
-        div:hover > .term-kill-btn { opacity: 1 !important; }
-        .term-kill-btn:hover { color: var(--color-destructive) !important; background: rgba(239,68,68,0.1) !important; }
-      `}</style>
-
       {/* Name prompt */}
       {showPrompt && (
         <TerminalNamePrompt
@@ -227,5 +182,153 @@ export function SidebarTerminals() {
         />
       )}
     </div>
+  );
+}
+
+function TerminalItem({ session: t, onAttach, onKill, onRename }: {
+  session: { name: string; created_at: number; cwd: string };
+  onAttach: () => void;
+  onKill: () => void;
+  onRename: (newName: string) => Promise<void>;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(t.name);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  const handleRename = async () => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== t.name) {
+      await onRename(trimmed);
+    }
+    setRenaming(false);
+  };
+
+  if (renaming) {
+    return (
+      <div style={{ padding: "6px 12px 6px 32px" }}>
+        <input
+          autoFocus
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleRename();
+            if (e.key === "Escape") setRenaming(false);
+          }}
+          onBlur={handleRename}
+          style={{
+            width: "100%", padding: "6px 8px", borderRadius: 6,
+            border: "1px solid var(--color-accent)",
+            background: "var(--color-bg)", color: "var(--color-text)",
+            fontSize: 12, fontFamily: "var(--font-mono)", outline: "none",
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "7px 12px 7px 32px",
+        transition: "background 0.1s",
+        position: "relative",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    >
+      <button
+        onClick={onAttach}
+        onContextMenu={(e) => { e.preventDefault(); setMenuOpen(true); }}
+        style={{
+          display: "flex", alignItems: "center", gap: 8, flex: 1,
+          border: "none", background: "transparent", cursor: "pointer",
+          textAlign: "left", padding: 0,
+        }}
+      >
+        <Terminal size={13} color="var(--color-tool-execute)" />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 500, color: "var(--color-text)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {t.name}
+          </div>
+          <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--color-text-tertiary)" }}>
+            {new Date(t.created_at * 1000).toLocaleString([], {
+              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+            })}
+          </div>
+        </div>
+      </button>
+
+      {/* Menu trigger */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+        style={{
+          width: 24, height: 24, borderRadius: 4, border: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "transparent", color: "var(--color-text-tertiary)",
+          cursor: "pointer", opacity: 0, transition: "opacity 0.15s",
+        }}
+        className="term-menu-btn"
+      >
+        <MoreHorizontal size={12} />
+      </button>
+
+      {/* Context menu */}
+      {menuOpen && (
+        <div
+          ref={menuRef}
+          style={{
+            position: "absolute", top: 0, right: 8, zIndex: 50,
+            background: "var(--color-bg-elevated)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 8, boxShadow: "var(--shadow-card-hover)",
+            padding: 4, minWidth: 140,
+          }}
+        >
+          <ContextMenuButton icon={<Pencil size={13} />} label="Rename" onClick={() => { setMenuOpen(false); setRenaming(true); }} />
+          <ContextMenuButton icon={<Pin size={13} />} label="Pin" onClick={() => setMenuOpen(false)} />
+          <ContextMenuButton icon={<Trash2 size={13} />} label="Kill" danger onClick={() => { setMenuOpen(false); onKill(); }} />
+        </div>
+      )}
+
+      <style>{`
+        div:hover > .term-menu-btn { opacity: 0.6 !important; }
+      `}</style>
+    </div>
+  );
+}
+
+function ContextMenuButton({ icon, label, onClick, danger }: {
+  icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 8, width: "100%",
+        padding: "7px 10px", borderRadius: 6, border: "none",
+        background: "transparent", cursor: "pointer",
+        fontSize: 12, color: danger ? "var(--color-destructive)" : "var(--color-text)",
+        transition: "background 0.1s",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
