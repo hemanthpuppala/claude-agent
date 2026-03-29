@@ -142,14 +142,25 @@ class PermissionView(discord.ui.View):
 class ClaudeCodeBot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.message_content = True
         super().__init__(intents=intents)
 
         self.tree = app_commands.CommandTree(self)
         self.db = None
         self.notifications = None
         self.manager: SessionManager | None = None
+        # Channel → project path mapping (persisted in memory, auto-discovered)
+        self._channel_projects: dict[int, str] = {}  # channel_id → project_path
+        # Channel → active session mapping
+        self._channel_sessions: dict[int, str] = {}  # channel_id → session_id
         self._setup_commands()
+
+    def _get_project_for_channel(self, channel_id: int) -> str | None:
+        """Get the project path linked to a channel."""
+        return self._channel_projects.get(channel_id)
+
+    def _get_session_for_channel(self, channel_id: int) -> str | None:
+        """Get the active session ID for a channel."""
+        return self._channel_sessions.get(channel_id)
 
     def _setup_commands(self):
         """Register all slash commands."""
@@ -321,6 +332,189 @@ class ClaudeCodeBot(discord.Client):
             )
             await interaction.response.send_message(embed=embed)
 
+        @self.tree.command(name="projects", description="List available projects")
+        async def cmd_projects(interaction: discord.Interaction):
+            root = DEFAULT_PROJECT_ROOT
+            if not os.path.isdir(root):
+                await interaction.response.send_message(f"Project root `{root}` not found.", ephemeral=True)
+                return
+
+            projects = sorted([
+                name for name in os.listdir(root)
+                if os.path.isdir(os.path.join(root, name)) and not name.startswith(".")
+            ])
+
+            # Show which project this channel is linked to
+            current = self._get_project_for_channel(interaction.channel_id)
+            current_name = current.split("/")[-1] if current else None
+
+            lines = []
+            for name in projects:
+                indicator = "→ " if name == current_name else "  "
+                path = os.path.join(root, name)
+                # Count sessions for this project
+                sessions = await list_sessions(self.db, cwd=path)
+                active = sum(1 for s in sessions if s["status"] in ("thinking", "waiting_permission"))
+                total = len(sessions)
+                status = f"🔵 {active} active" if active else f"{total} sessions" if total else "no sessions"
+                lines.append(f"{indicator}📁 **{name}** — {status}")
+
+            embed = discord.Embed(
+                title="📁 Projects",
+                description="\n".join(lines) + f"\n\n_Use `/start <project>` to begin_",
+                color=0x5EEAD4,
+            )
+            if current_name:
+                embed.set_footer(text=f"This channel → {current_name}")
+            await interaction.response.send_message(embed=embed)
+
+        @self.tree.command(name="start", description="Start a Claude session for a project in this channel")
+        @app_commands.describe(project="Project directory name")
+        async def cmd_start(interaction: discord.Interaction, project: str):
+            project_path = os.path.join(DEFAULT_PROJECT_ROOT, project)
+            if not os.path.isdir(project_path):
+                await interaction.response.send_message(f"❌ Project `{project}` not found in `{DEFAULT_PROJECT_ROOT}`", ephemeral=True)
+                return
+
+            await interaction.response.defer()
+
+            # Link this channel to the project
+            self._channel_projects[interaction.channel_id] = project_path
+
+            # Create a new session
+            session = await self.manager.create(project_path)
+            self._channel_sessions[interaction.channel_id] = session.id
+
+            embed = discord.Embed(
+                title=f"⚡ Session started — {project}",
+                description=(
+                    f"**Project:** `{project_path}`\n"
+                    f"**Session:** `{session.id[:8]}`\n"
+                    f"**Mode:** {session.permission_mode}\n\n"
+                    f"This channel is now linked to **{project}**.\n"
+                    f"Use `/ask <prompt>` to chat with Claude."
+                ),
+                color=0xD4845A,
+            )
+            await interaction.followup.send(embed=embed)
+
+        @self.tree.command(name="ask", description="Send a prompt to Claude (uses this channel's project)")
+        @app_commands.describe(prompt="Your prompt for Claude")
+        async def cmd_ask(interaction: discord.Interaction, prompt: str):
+            project_path = self._get_project_for_channel(interaction.channel_id)
+            session_id = self._get_session_for_channel(interaction.channel_id)
+
+            if not project_path:
+                await interaction.response.send_message(
+                    "❌ No project linked to this channel. Use `/start <project>` first.",
+                    ephemeral=True,
+                )
+                return
+
+            await interaction.response.defer()
+            project = project_path.split("/")[-1]
+
+            # Get or restore session
+            session = None
+            if session_id:
+                session = self.manager.get(session_id)
+                if not session:
+                    try:
+                        session = await self.manager.restore(session_id)
+                    except Exception:
+                        session = None
+
+            if not session:
+                # Find most recent session for this project
+                sessions = await list_sessions(self.db, cwd=project_path)
+                if sessions:
+                    try:
+                        session = await self.manager.restore(sessions[0]["id"])
+                    except Exception:
+                        session = None
+
+            if not session:
+                session = await self.manager.create(project_path)
+
+            self._channel_sessions[interaction.channel_id] = session.id
+
+            # Show user prompt
+            await interaction.followup.send(f"**You:** {truncate(prompt, 500)}")
+
+            # Send query
+            prev_count = len(session.message_log)
+            await self.manager.send_query(session, prompt)
+
+            # Wait for result
+            for _ in range(180):  # 3 minute timeout
+                await asyncio.sleep(1)
+                if session.status == "idle" and len(session.message_log) > prev_count:
+                    break
+                if session.status == "waiting_permission":
+                    for msg in reversed(session.message_log):
+                        if msg.get("type") == "permission_request":
+                            await self._post_permission(interaction.channel, session, msg)
+                            break
+                    while session.status == "waiting_permission":
+                        await asyncio.sleep(1)
+
+            # Post Claude's response
+            await self._post_session_messages(interaction.channel, session, after=prev_count)
+
+        @self.tree.command(name="switch", description="Switch this channel to a different project")
+        @app_commands.describe(project="Project directory name")
+        async def cmd_switch(interaction: discord.Interaction, project: str):
+            project_path = os.path.join(DEFAULT_PROJECT_ROOT, project)
+            if not os.path.isdir(project_path):
+                await interaction.response.send_message(f"❌ Project `{project}` not found.", ephemeral=True)
+                return
+
+            self._channel_projects[interaction.channel_id] = project_path
+
+            # Find existing session
+            sessions = await list_sessions(self.db, cwd=project_path)
+            if sessions:
+                self._channel_sessions[interaction.channel_id] = sessions[0]["id"]
+                prompt_preview = truncate(sessions[0].get("last_prompt") or "Session", 60)
+                await interaction.response.send_message(
+                    f"📁 Switched to **{project}** — resumed session: _{prompt_preview}_"
+                )
+            else:
+                self._channel_sessions.pop(interaction.channel_id, None)
+                await interaction.response.send_message(
+                    f"📁 Switched to **{project}** — no existing sessions. Use `/ask` to start."
+                )
+
+        @self.tree.command(name="whoami", description="Show which project this channel is linked to")
+        async def cmd_whoami(interaction: discord.Interaction):
+            project_path = self._get_project_for_channel(interaction.channel_id)
+            session_id = self._get_session_for_channel(interaction.channel_id)
+
+            if not project_path:
+                await interaction.response.send_message(
+                    "This channel is not linked to any project.\nUse `/start <project>` or `/switch <project>`.",
+                    ephemeral=True,
+                )
+                return
+
+            project = project_path.split("/")[-1]
+            session = self.manager.get(session_id) if session_id else None
+
+            embed = discord.Embed(
+                title=f"📁 {project}",
+                color=0xD4845A,
+            )
+            embed.add_field(name="Path", value=f"`{project_path}`", inline=False)
+            if session:
+                emoji = STATUS_EMOJI.get(session.status, "⚪")
+                embed.add_field(name="Session", value=f"{emoji} `{session.id[:8]}` — {session.status}", inline=True)
+                embed.add_field(name="Cost", value=format_cost(session.total_cost), inline=True)
+                embed.add_field(name="Mode", value=session.permission_mode, inline=True)
+            else:
+                embed.add_field(name="Session", value="None active", inline=False)
+
+            await interaction.response.send_message(embed=embed)
+
     async def _post_permission(self, channel, session, perm_msg: dict):
         """Post a permission request with buttons."""
         tool_name = perm_msg.get("tool_name", "Unknown")
@@ -339,10 +533,9 @@ class ClaudeCodeBot(discord.Client):
         view = PermissionView(self.manager, session.id, request_id)
         await channel.send(embed=embed, view=view)
 
-    async def _post_session_messages(self, channel, session):
+    async def _post_session_messages(self, channel, session, after: int = -10):
         """Post recent assistant messages as embeds."""
-        # Get last few messages
-        recent = session.message_log[-10:]
+        recent = session.message_log[after:] if after >= 0 else session.message_log[after:]
         text_parts = []
         tool_parts = []
 

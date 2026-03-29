@@ -1,6 +1,18 @@
 """Centralized configuration — all constants, env vars, defaults."""
 
 import os
+from pathlib import Path
+
+# Load .env file if it exists
+_env_file = Path(__file__).parent.parent / ".env"
+if _env_file.is_file():
+    for line in _env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            key, value = key.strip(), value.strip()
+            if key and value and key not in os.environ:
+                os.environ[key] = value
 
 # App metadata
 APP_TITLE = "Claude Code Web"
