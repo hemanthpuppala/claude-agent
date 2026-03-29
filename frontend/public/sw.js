@@ -34,9 +34,7 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: data.body || "Notification",
-    tag: data.type === "permission_request"
-      ? `perm-${data.request_id}`
-      : `status-${data.session_id || "general"}`,
+    tag: `${data.type}-${data.session_id || "general"}-${Date.now()}`,
     renotify: true,
     requireInteraction: data.type === "permission_request",
     data: {

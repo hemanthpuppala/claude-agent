@@ -25,7 +25,7 @@ async def ws_claude(websocket: WebSocket):
     if session_id:
         session = manager.get(session_id)
         if session:
-            # Refresh messages from DB (may have been updated by Discord bot or another process)
+            # Ensure in-memory buffer is up to date with DB
             from app.database.queries.messages import get_messages as db_get_messages
             db_msgs = await db_get_messages(websocket.app.state.db, session_id)
             if len(db_msgs) > len(session.message_log):
