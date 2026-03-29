@@ -226,7 +226,19 @@ class SessionManager:
     # --- Query Processing ---
 
     async def send_query(self, session: ManagedSession, prompt: str):
-        """Queue a query for processing."""
+        """Queue a query and persist the user message."""
+        # Store user message so it survives refresh/replay
+        user_msg = {"type": "user_echo", "content": prompt, "seq": session.message_seq}
+        session.message_seq += 1
+        session.message_log.append(user_msg)
+        if len(session.message_log) > MESSAGE_BUFFER_SIZE:
+            session.message_log = session.message_log[-MESSAGE_BUFFER_SIZE:]
+        await db_append_message(
+            self._db, session.id, user_msg["seq"],
+            "user_echo", json.dumps(user_msg),
+        )
+        # Broadcast to all attached browsers (other tabs viewing this session)
+        await self._broadcast(session, user_msg)
         await session.query_queue.put(prompt)
 
     async def _process_queries(self, session: ManagedSession):
