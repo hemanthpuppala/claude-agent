@@ -709,22 +709,18 @@ class ClaudeCodeBot(discord.Client):
         if text_parts:
             full_text = "\n\n".join(text_parts)
             # Split into chunks if needed
-            if len(full_text) > 3800:
-                full_text = full_text[:3800] + "\n\n_...response truncated. View full response in web UI._"
+            # Split into 1900-char chunks — send up to 8 messages for full response
+            chunks = [full_text[i:i+1900] for i in range(0, len(full_text), 1900)]
 
-            if len(full_text) > 1900:
-                chunks = [full_text[i:i+1900] for i in range(0, len(full_text), 1900)]
-            else:
-                chunks = [full_text]
-
-            for i, chunk in enumerate(chunks[:3]):
+            total_chunks = min(len(chunks), 8)
+            for i, chunk in enumerate(chunks[:8]):
                 embed = discord.Embed(
                     description=chunk,
                     color=0xD4845A,
                 )
                 if i == 0:
                     embed.set_author(name=f"Claude · {project}")
-                if i == len(chunks) - 1 and result_info:
+                if i == total_chunks - 1 and result_info:
                     status = "❌" if result_info["error"] else "✅"
                     footer = f"{status} {result_info['cost']} · {result_info['turns']} turns"
                     if result_info["duration"]:
