@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { ChevronRight, FileText, Search, FileSearch, Pencil, FilePlus, Terminal, Globe, ExternalLink, Bot, Wrench, HelpCircle } from "lucide-react";
+import { ChevronRight, FileText, Search, FileSearch, Pencil, FilePlus, Terminal, Globe, ExternalLink, Bot, Wrench, HelpCircle, AlertTriangle } from "lucide-react";
 import { TOOL_CATEGORIES, DEFAULT_TOOL, isDangerousCommand } from "@/lib/constants";
 import { truncate, basename } from "@/lib/utils";
-import { AlertTriangle } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ICONS: Record<string, any> = {
@@ -10,18 +9,20 @@ const ICONS: Record<string, any> = {
   Globe, ExternalLink, Bot, Wrench, HelpCircle,
 };
 
-export function ToolCard({ toolName, toolInput }: {
+export function ToolCard({ toolName, toolInput, output, outputError }: {
   toolName: string;
   toolInput: Record<string, unknown>;
   toolId?: string;
+  output?: string;
+  outputError?: boolean;
 }) {
   const category = TOOL_CATEGORIES[toolName as keyof typeof TOOL_CATEGORIES] || DEFAULT_TOOL;
-  const autoExpand = ["Edit", "Write", "Bash"].includes(toolName);
-  const [expanded, setExpanded] = useState(autoExpand);
+  const [expanded, setExpanded] = useState(false);
 
   const Icon = ICONS[category.icon] || Wrench;
   const detail = getDetail(toolName, toolInput);
   const isDangerous = toolName === "Bash" && isDangerousCommand(String(toolInput.command || ""));
+  const hasOutput = output && output.trim().length > 0;
 
   return (
     <div style={{
@@ -30,7 +31,7 @@ export function ToolCard({ toolName, toolInput }: {
       border: "1px solid var(--color-border)",
       borderLeft: `3px solid ${category.color}`,
     }}>
-      {/* Header */}
+      {/* Header — always visible */}
       <div
         onClick={() => setExpanded(!expanded)}
         style={{
@@ -51,6 +52,15 @@ export function ToolCard({ toolName, toolInput }: {
         }}>
           {detail}
         </span>
+        {hasOutput && !expanded && (
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4,
+            background: outputError ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)",
+            color: outputError ? "var(--color-destructive)" : "var(--color-success)",
+          }}>
+            {outputError ? "error" : "done"}
+          </span>
+        )}
         <ChevronRight
           size={14} color="var(--color-text-tertiary)"
           style={{
@@ -60,25 +70,77 @@ export function ToolCard({ toolName, toolInput }: {
         />
       </div>
 
-      {/* Body */}
+      {/* Expanded body — input + output */}
       {expanded && (
-        <div style={{
-          borderTop: "1px solid var(--color-border-subtle)",
-          padding: "12px 14px",
-          background: "rgba(0,0,0,0.1)",
-        }}>
-          {isDangerous && (
+        <div style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
+          {/* Input section */}
+          <div style={{
+            padding: "12px 14px",
+            background: "rgba(0,0,0,0.08)",
+          }}>
             <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 10px", borderRadius: 6, marginBottom: 10,
-              background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)",
-              fontSize: 11, fontWeight: 600, color: "var(--color-warning)",
+              fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+              letterSpacing: "0.05em", color: "var(--color-text-tertiary)",
+              marginBottom: 8,
             }}>
-              <AlertTriangle size={12} />
-              Potentially destructive command
+              Input
+            </div>
+
+            {isDangerous && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "6px 10px", borderRadius: 6, marginBottom: 10,
+                background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)",
+                fontSize: 11, fontWeight: 600, color: "var(--color-warning)",
+              }}>
+                <AlertTriangle size={12} />
+                Potentially destructive command
+              </div>
+            )}
+
+            <ToolBody toolName={toolName} toolInput={toolInput} />
+          </div>
+
+          {/* Output section */}
+          {hasOutput && (
+            <div style={{
+              padding: "12px 14px",
+              borderTop: "1px solid var(--color-border-subtle)",
+              background: "rgba(0,0,0,0.04)",
+            }}>
+              <div style={{
+                fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                letterSpacing: "0.05em", marginBottom: 8,
+                color: outputError ? "var(--color-destructive)" : "var(--color-text-tertiary)",
+              }}>
+                {outputError ? "Error" : "Output"}
+              </div>
+              <pre style={{
+                margin: 0, padding: "8px 10px", borderRadius: 6,
+                background: outputError ? "rgba(239,68,68,0.05)" : "var(--color-bg)",
+                border: "1px solid var(--color-border-subtle)",
+                fontSize: 12, lineHeight: 1.5,
+                fontFamily: "var(--font-mono)",
+                color: outputError ? "var(--color-destructive)" : "var(--color-text-secondary)",
+                maxHeight: 300, overflowY: "auto",
+                whiteSpace: "pre-wrap", wordBreak: "break-word",
+              }}>
+                {output!.length > 5000 ? output!.substring(0, 5000) + "\n... [truncated]" : output}
+              </pre>
             </div>
           )}
-          <ToolBody toolName={toolName} toolInput={toolInput} />
+
+          {/* Waiting for output */}
+          {!hasOutput && !outputError && (
+            <div style={{
+              padding: "8px 14px",
+              borderTop: "1px solid var(--color-border-subtle)",
+              fontSize: 11, color: "var(--color-text-tertiary)", fontStyle: "italic",
+              background: "rgba(0,0,0,0.04)",
+            }}>
+              Running...
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -117,6 +179,7 @@ function ToolBody({ toolName, toolInput }: { toolName: string; toolInput: Record
           background: "var(--color-bg)", fontSize: 13, lineHeight: 1.5,
           fontFamily: "var(--font-mono)", color: "var(--color-text)",
           overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
+          border: "1px solid var(--color-border-subtle)",
         }}>
           <span style={{ color: "var(--color-text-tertiary)" }}>$ </span>
           {String(toolInput.command || "")}
@@ -167,23 +230,45 @@ function ToolBody({ toolName, toolInput }: { toolName: string; toolInput: Record
       const lines = content.split("\n").length;
       return (
         <div>
-          <div style={{
-            fontSize: 11, fontWeight: 600, color: "var(--color-success)",
-            marginBottom: 8,
-          }}>
-            {lines} lines written
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-success)", marginBottom: 8 }}>
+            {lines} lines
           </div>
           <pre style={{
             margin: 0, padding: "10px 12px", borderRadius: 6,
             background: "var(--color-bg)", fontSize: 12, lineHeight: 1.5,
             fontFamily: "var(--font-mono)", color: "var(--color-text)",
             maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap",
+            border: "1px solid var(--color-border-subtle)",
           }}>
             {truncate(content, 2000)}
           </pre>
         </div>
       );
     }
+
+    case "Read":
+      return (
+        <div style={{
+          fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)",
+          padding: "6px 10px", borderRadius: 6, background: "var(--color-bg)",
+          border: "1px solid var(--color-border-subtle)",
+        }}>
+          {String(toolInput.file_path || "")}
+        </div>
+      );
+
+    case "Glob":
+    case "Grep":
+      return (
+        <div style={{
+          fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)",
+          padding: "6px 10px", borderRadius: 6, background: "var(--color-bg)",
+          border: "1px solid var(--color-border-subtle)",
+        }}>
+          {String(toolInput.pattern || toolInput.query || "")}
+          {toolInput.path ? <span style={{ color: "var(--color-text-tertiary)" }}> in {String(toolInput.path)}</span> : null}
+        </div>
+      );
 
     case "WebSearch":
       return (
@@ -195,12 +280,8 @@ function ToolBody({ toolName, toolInput }: { toolName: string; toolInput: Record
 
     case "WebFetch":
       return (
-        <a
-          href={String(toolInput.url || "")}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ fontSize: 13, color: "var(--color-accent)", wordBreak: "break-all" }}
-        >
+        <a href={String(toolInput.url || "")} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 13, color: "var(--color-accent)", wordBreak: "break-all" }}>
           {String(toolInput.url || "")}
         </a>
       );
@@ -214,6 +295,7 @@ function ToolBody({ toolName, toolInput }: { toolName: string; toolInput: Record
           background: "var(--color-bg)", fontSize: 12, lineHeight: 1.5,
           fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)",
           maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap",
+          border: "1px solid var(--color-border-subtle)",
         }}>
           {JSON.stringify(toolInput, null, 2)}
         </pre>

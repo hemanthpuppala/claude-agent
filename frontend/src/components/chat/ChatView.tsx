@@ -61,7 +61,7 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
 
           {/* Message list */}
           {messages.map((msg, i) => (
-            <MessageRenderer key={i} message={msg} onPermission={sendPermission} />
+            <MessageRenderer key={i} message={msg} onPermission={sendPermission} sessionId={sessionId} />
           ))}
 
           <div ref={bottomRef} />
@@ -80,15 +80,16 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
   );
 }
 
-function MessageRenderer({ message, onPermission }: {
+function MessageRenderer({ message, onPermission, sessionId }: {
   message: ServerMessage;
   onPermission: (requestId: string, decision: string, message?: string) => void;
+  sessionId?: string;
 }) {
   switch (message.type) {
     case "user_echo":
       return <MessageUser content={(message as UserEchoMsg).content} />;
     case "assistant":
-      return <MessageClaude message={message as AssistantMsg} />;
+      return <MessageClaude message={message as AssistantMsg} sessionId={sessionId} />;
     case "result":
       return <ResultBar result={message as ResultMsg} />;
     case "permission_request": {
