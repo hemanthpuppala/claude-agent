@@ -9,7 +9,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 /**
  * Find the tool_result output for a given tool_use_id by scanning
- * all messages in the session. The result may be in a later message.
+ * all messages in the session.
  */
 function findToolOutput(sessionId: string | undefined, toolUseId: string): { content: string; isError: boolean } | null {
   if (!sessionId || !toolUseId) return null;
@@ -26,6 +26,21 @@ function findToolOutput(sessionId: string | undefined, toolUseId: string): { con
     }
   }
   return null;
+}
+
+/**
+ * Check if a permission_request exists for a given tool name + input.
+ * If yes, the ToolCard should be hidden (PermissionCard shows it instead).
+ */
+function hasPermissionRequest(sessionId: string | undefined, toolName: string): boolean {
+  if (!sessionId) return false;
+  const session = useSessionStore.getState().getSession(sessionId);
+  if (!session) return false;
+
+  return session.messages.some(
+    (msg) => msg.type === "permission_request" &&
+      (msg as { tool_name?: string }).tool_name === toolName
+  );
 }
 
 export function MessageClaude({ message, sessionId }: { message: AssistantMsg; sessionId?: string }) {
@@ -60,6 +75,9 @@ function ContentBlockRenderer({ block, sessionId }: { block: ContentBlock; sessi
       if (name === "AskUserQuestion") {
         return <AskUserQuestion input={block.input || {}} />;
       }
+      // If there's a permission_request for this tool, don't render the ToolCard —
+      // the PermissionCard (rendered separately) already shows the tool info.
+      if (hasPermissionRequest(sessionId, name)) return null;
       // Find the matching tool_result output
       const result = findToolOutput(sessionId, block.id || "");
       return (

@@ -374,11 +374,16 @@ class SessionManager:
             return PermissionResultAllow()
 
         # Deduplicate: SDK may call can_use_tool twice for the same tool_use.
-        # Generate a fingerprint from tool name + input to detect re-asks.
+        # Use a simple fingerprint: tool_name + the primary argument value.
         safe_input = tool_input if isinstance(tool_input, dict) else {"raw": str(tool_input)}
-        fingerprint = f"{tool_name}:{json.dumps(safe_input, sort_keys=True)}"
+        primary = ""
+        if isinstance(tool_input, dict):
+            primary = str(tool_input.get("command", tool_input.get("file_path",
+                tool_input.get("pattern", tool_input.get("url",
+                tool_input.get("query", ""))))))
+        fingerprint = f"{tool_name}:{primary}"
         if fingerprint in session.resolved_tool_ids:
-            # Already approved this exact tool call — auto-allow
+            log.debug("Dedup: auto-allowing %s (already resolved)", fingerprint[:60])
             return PermissionResultAllow()
 
         # Need human approval
