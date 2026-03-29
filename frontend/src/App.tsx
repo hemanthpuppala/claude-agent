@@ -5,6 +5,7 @@ import { TabBar } from "@/components/layout/TabBar";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
+import { WorkspaceBar } from "@/components/layout/WorkspaceBar";
 import { ReconnectionBanner } from "@/components/notifications/ReconnectionBanner";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import { ChatView } from "@/components/chat/ChatView";
@@ -42,6 +43,7 @@ export function App() {
 
         {/* Tab Bar */}
         <TabBar />
+        <WorkspaceBar />
 
         {/* Content */}
         <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>

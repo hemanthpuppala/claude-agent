@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import { Plus, FolderOpen, Star, Zap, Terminal } from "lucide-react";
 import { projects as projectsApi } from "@/lib/api";
 import { useOpenTab } from "@/hooks/useOpenTab";
-import { colors, spacing, sidebarHeader, sidebarHeaderLabel, sidebarCountBadge, listItem, separator, hoverBg, unhoverBg } from "@/lib/styles";
+import { useTabStore } from "@/stores/tabStore";
+import { colors, spacing, sidebarHeader, sidebarHeaderLabel, sidebarCountBadge, listItem, separator, hoverBg } from "@/lib/styles";
 import type { Project } from "@/lib/types";
 
 export function SidebarProjects() {
   const [saved, setSaved] = useState<Project[]>([]);
   const [discovered, setDiscovered] = useState<{ name: string; path: string }[]>([]);
   const { openSession, openTerminal } = useOpenTab();
+  const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const activeProject = activeTab?.project || activeTab?.cwd || activeTab?.projectPath || "";
 
   useEffect(() => {
     projectsApi.list().then((data) => setSaved(data as unknown as Project[]));
@@ -54,9 +57,19 @@ export function SidebarProjects() {
           <div key={p.path}>
             {i > 0 && <div style={separator} />}
             <div
-              style={listItem}
+              style={{
+                ...listItem,
+                ...(p.path === activeProject ? {
+                  background: "rgba(212,132,90,0.06)",
+                  borderLeft: `3px solid ${colors.accent}`,
+                  paddingLeft: spacing.sm + 1,
+                } : {}),
+              }}
               onMouseEnter={hoverBg}
-              onMouseLeave={unhoverBg}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background =
+                  p.path === activeProject ? "rgba(212,132,90,0.06)" : "transparent";
+              }}
             >
             <div style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
               {p.pinned
