@@ -103,11 +103,13 @@ class NotificationManager:
     async def _send_to_all(self, payload: str):
         """Send a push notification to all subscriptions. Clean up dead ones."""
         subscriptions = await get_all_push_subscriptions(self._db)
+        print(f"[PUSH] Sending to {len(subscriptions)} subscription(s)")
         dead_endpoints = []
 
         for sub in subscriptions:
             try:
-                webpush(
+                print(f"[PUSH] Pushing to {sub['endpoint'][:60]}...")
+                resp = webpush(
                     subscription_info={
                         "endpoint": sub["endpoint"],
                         "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
@@ -116,13 +118,15 @@ class NotificationManager:
                     vapid_private_key=self._vapid_private,
                     vapid_claims={"sub": VAPID_CONTACT},
                 )
+                print(f"[PUSH] OK — status {getattr(resp, 'status_code', 'unknown')}")
             except WebPushException as e:
+                status = getattr(e.response, 'status_code', 'none') if e.response else 'no response'
+                print(f"[PUSH] WebPushException: {e} (status={status})")
                 if e.response and e.response.status_code in (404, 410):
                     dead_endpoints.append(sub["endpoint"])
-                else:
-                    log.warning("Push failed for %s: %s", sub["endpoint"][:40], e)
             except Exception as e:
-                log.warning("Push error: %s", e)
+                print(f"[PUSH] Error: {e}")
+                import traceback; traceback.print_exc()
 
         for endpoint in dead_endpoints:
             await delete_push_subscription(self._db, endpoint)

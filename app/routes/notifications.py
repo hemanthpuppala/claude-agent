@@ -39,9 +39,22 @@ async def unsubscribe(request: Request, body: UnsubscribeRequest):
 @router.post("/test")
 async def test_push(request: Request):
     """Send a test notification to verify push is working."""
-    await request.app.state.notifications.send_status_push(
-        "test", "Test",
-        "Push works!",
-        "Notifications are configured correctly.",
-    )
-    return {"status": "sent"}
+    mgr = request.app.state.notifications
+    # Debug: check subscriptions
+    from app.database.queries.push import get_all_push_subscriptions
+    subs = await get_all_push_subscriptions(request.app.state.db)
+    print(f"[PUSH TEST] Found {len(subs)} subscription(s)")
+    for s in subs:
+        print(f"[PUSH TEST] Endpoint: {s['endpoint'][:60]}...")
+
+    try:
+        await mgr.send_status_push(
+            "test", "Test",
+            "Push works!",
+            "Notifications are configured correctly.",
+        )
+        print("[PUSH TEST] send_status_push completed")
+    except Exception as e:
+        print(f"[PUSH TEST] ERROR: {e}")
+        return {"status": "error", "message": str(e)}
+    return {"status": "sent", "subscriptions": len(subs)}

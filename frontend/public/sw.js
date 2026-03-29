@@ -9,24 +9,35 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  if (!event.data) return;
+  console.log("[SW] Push received:", event.data ? event.data.text() : "no data");
+
+  if (!event.data) {
+    // Show generic notification even without data
+    event.waitUntil(
+      self.registration.showNotification("Claude Code Web", { body: "New notification" })
+    );
+    return;
+  }
 
   let data;
   try {
     data = event.data.json();
-  } catch {
+  } catch (e) {
+    console.error("[SW] Failed to parse push data:", e);
+    event.waitUntil(
+      self.registration.showNotification("Claude Code Web", { body: event.data.text() })
+    );
     return;
   }
 
+  console.log("[SW] Push data:", JSON.stringify(data));
+
   const options = {
-    body: data.body || "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    body: data.body || "Notification",
     tag: data.type === "permission_request"
       ? `perm-${data.request_id}`
-      : `status-${data.session_id}`,
+      : `status-${data.session_id || "general"}`,
     renotify: true,
-    // Permission notifications stay until clicked
     requireInteraction: data.type === "permission_request",
     data: {
       url: data.url || "/",
@@ -34,7 +45,6 @@ self.addEventListener("push", (event) => {
       request_id: data.request_id,
       type: data.type,
     },
-    // Action buttons for permission requests
     actions: data.type === "permission_request"
       ? [
           { action: "allow", title: "Allow" },
@@ -45,6 +55,8 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     self.registration.showNotification(data.title || "Claude Code Web", options)
+      .then(() => console.log("[SW] Notification shown"))
+      .catch((err) => console.error("[SW] showNotification error:", err))
   );
 });
 
