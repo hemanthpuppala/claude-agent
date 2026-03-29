@@ -44,7 +44,7 @@ function ActivityButton({ active, label, onClick, children }: {
   return (
     <button
       onClick={onClick}
-      title={label}
+      aria-label={label}
       style={{
         width: 36, height: 36, borderRadius: 8, border: "none",
         display: "flex", alignItems: "center", justifyContent: "center",
