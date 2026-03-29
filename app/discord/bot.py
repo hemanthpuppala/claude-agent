@@ -823,8 +823,15 @@ class ClaudeCodeBot(discord.Client):
             parent_id = channel.parent_id
             project_path = self._channel_projects.get(parent_id) if parent_id else None
 
-            if not session_id or not project_path:
-                return  # Not a Claude thread
+            if not project_path:
+                return  # Parent channel not a project channel
+
+            # If thread→session link is lost (bot restarted), create a new session
+            if not session_id:
+                print(f"[DISCORD] Orphan thread {channel.name} — creating new session")
+                session = await self.manager.create(project_path)
+                self._thread_sessions[channel.id] = session.id
+                session_id = session.id
 
             session = self.manager.get(session_id)
             if not session:
