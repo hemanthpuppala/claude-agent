@@ -3,6 +3,8 @@
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from app.database.queries.push import get_all_push_subscriptions
+
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 
@@ -10,10 +12,23 @@ class PushSubscription(BaseModel):
     endpoint: str
     keys: dict  # {p256dh: str, auth: str}
     user_agent: str | None = None
+    device_name: str | None = None
 
 
 class UnsubscribeRequest(BaseModel):
     endpoint: str
+
+
+@router.get("/devices")
+async def list_devices(request: Request):
+    """List all registered push devices."""
+    subs = await get_all_push_subscriptions(request.app.state.db)
+    return [{
+        "id": s["id"],
+        "endpoint_short": s["endpoint"][:60] + "...",
+        "user_agent": s.get("user_agent") or "Unknown device",
+        "created_at": s["created_at"],
+    } for s in subs]
 
 
 @router.get("/vapid-public-key")
@@ -25,7 +40,12 @@ async def get_vapid_key(request: Request):
 @router.post("/subscribe")
 async def subscribe(request: Request, body: PushSubscription):
     """Store a push subscription after user grants notification permission."""
-    await request.app.state.notifications.subscribe(body.model_dump())
+    data = body.model_dump()
+    # Capture user agent from HTTP header if not provided
+    if not data.get("user_agent"):
+        data["user_agent"] = request.headers.get("user-agent", "Unknown")
+    await request.app.state.notifications.subscribe(data)
+    print(f"[PUSH] New subscription from: {data.get('user_agent', 'unknown')[:60]}")
     return {"status": "subscribed"}
 
 
