@@ -78,6 +78,8 @@ class ManagedSession:
     attached_ws: set = field(default_factory=set)
     query_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
     perm_futures: dict[str, asyncio.Future] = field(default_factory=dict)
+    # Track tool_use IDs that already had permission resolved (prevent re-asking)
+    resolved_tool_ids: set = field(default_factory=set)
 
     # In-memory message buffer (fast replay without DB)
     message_log: list[dict] = field(default_factory=list)
@@ -252,6 +254,7 @@ class SessionManager:
                 break
 
             session.status = "thinking"
+            session.resolved_tool_ids.clear()  # Reset for new query turn
             await self._broadcast(session, {"type": "status", "status": "thinking"})
             await db_update_session(
                 self._db, session.id,
@@ -370,12 +373,19 @@ class SessionManager:
         if mode == "acceptEdits" and tool_name in SAFE_TOOLS:
             return PermissionResultAllow()
 
+        # Deduplicate: SDK may call can_use_tool twice for the same tool_use.
+        # Generate a fingerprint from tool name + input to detect re-asks.
+        safe_input = tool_input if isinstance(tool_input, dict) else {"raw": str(tool_input)}
+        fingerprint = f"{tool_name}:{json.dumps(safe_input, sort_keys=True)}"
+        if fingerprint in session.resolved_tool_ids:
+            # Already approved this exact tool call — auto-allow
+            return PermissionResultAllow()
+
         # Need human approval
         request_id = str(uuid4())
         future = asyncio.get_event_loop().create_future()
         session.perm_futures[request_id] = future
 
-        safe_input = tool_input if isinstance(tool_input, dict) else {"raw": str(tool_input)}
         perm_msg = {
             "type": "permission_request",
             "request_id": request_id,
@@ -411,9 +421,13 @@ class SessionManager:
             )
 
         try:
-            return await asyncio.wait_for(future, timeout=PERMISSION_TIMEOUT)
+            result = await asyncio.wait_for(future, timeout=PERMISSION_TIMEOUT)
+            # Mark as resolved so SDK re-ask gets auto-allowed
+            session.resolved_tool_ids.add(fingerprint)
+            return result
         except asyncio.TimeoutError:
             log.warning("Permission timeout in %s for %s — auto-allowing", session.id[:8], tool_name)
+            session.resolved_tool_ids.add(fingerprint)
             return PermissionResultAllow()
         finally:
             session.perm_futures.pop(request_id, None)
