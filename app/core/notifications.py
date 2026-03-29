@@ -117,6 +117,8 @@ class NotificationManager:
                     data=payload,
                     vapid_private_key=self._vapid_private,
                     vapid_claims={"sub": VAPID_CONTACT},
+                    content_encoding="aes128gcm",
+                    ttl=86400,
                 )
                 print(f"[PUSH] OK — status {getattr(resp, 'status_code', 'unknown')}")
             except WebPushException as e:
