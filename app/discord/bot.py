@@ -643,46 +643,92 @@ class ClaudeCodeBot(discord.Client):
         await channel.send(embed=embed, view=view)
 
     async def _post_session_messages(self, channel, session, after: int = -10):
-        """Post recent assistant messages as embeds."""
+        """Post assistant messages as properly formatted Discord embeds."""
         recent = session.message_log[after:] if after >= 0 else session.message_log[after:]
-        text_parts = []
-        tool_parts = []
+        project = session.cwd.split("/")[-1]
+        sent = 0
 
         for msg in recent:
+            if sent >= 8:  # Don't flood — max 8 messages
+                break
+
             if msg.get("type") == "assistant":
                 for block in msg.get("content", []):
-                    if block.get("type") == "text":
-                        text_parts.append(block.get("text", ""))
-                    elif block.get("type") == "tool_use":
+                    btype = block.get("type", "")
+
+                    # Skip internal tools and thinking
+                    if btype == "tool_use":
                         name = block.get("name", "")
-                        tool_parts.append(f"🔧 {name}: {tool_summary(name, block.get('input', {}))}")
-                    elif block.get("type") == "tool_result":
+                        if name in ("ToolSearch", "ListMcpResourcesTool", "ReadMcpResourceTool"):
+                            continue
+                        inp = block.get("input", {})
+                        detail = tool_summary(name, inp)
+                        embed = discord.Embed(
+                            description=f"**{name}** {detail}",
+                            color=0x5EEAD4 if name in ("Read", "Glob", "Grep") else
+                                  0xFBBF24 if name in ("Edit", "Write") else
+                                  0x86EFAC if name == "Bash" else 0xD4845A,
+                        )
+                        await channel.send(embed=embed)
+                        sent += 1
+
+                    elif btype == "tool_result":
                         content = block.get("content", "")
-                        if content:
-                            tool_parts.append(f"```\n{truncate(content, 500)}\n```")
+                        if not content or not content.strip():
+                            continue
+                        is_error = block.get("is_error", False)
+                        # Format as code block, truncated
+                        code = truncate(content, 1800)
+                        embed = discord.Embed(
+                            description=f"```\n{code}\n```",
+                            color=0xEF4444 if is_error else 0x353431,
+                        )
+                        await channel.send(embed=embed)
+                        sent += 1
+
+                    elif btype == "text":
+                        text = block.get("text", "").strip()
+                        if not text:
+                            continue
+                        # Split long text into chunks
+                        if len(text) > 1900:
+                            chunks = [text[i:i+1900] for i in range(0, len(text), 1900)]
+                        else:
+                            chunks = [text]
+                        for chunk in chunks[:3]:
+                            embed = discord.Embed(
+                                description=chunk,
+                                color=0xD4845A,
+                            )
+                            embed.set_author(name=f"Claude · {project}")
+                            await channel.send(embed=embed)
+                            sent += 1
+
+                    elif btype == "thinking":
+                        # Show thinking as collapsed spoiler
+                        thinking = block.get("thinking", "")
+                        if thinking:
+                            short = truncate(thinking, 200)
+                            await channel.send(f"💭 ||{short}||")
+                            sent += 1
+
             elif msg.get("type") == "result":
                 cost = format_cost(msg.get("total_cost_usd", 0))
                 turns = msg.get("num_turns", 0)
-                text_parts.append(f"\n_{cost} · {turns} turns_")
+                duration = msg.get("duration_ms", 0)
+                duration_s = f"{duration / 1000:.1f}s" if duration else ""
+                is_error = msg.get("is_error", False)
 
-        full_text = "\n\n".join(text_parts) if text_parts else "No text response."
-        if tool_parts:
-            full_text = "\n".join(tool_parts) + "\n\n" + full_text
+                footer = f"{'❌ Error' if is_error else '✅'} {cost} · {turns} turns"
+                if duration_s:
+                    footer += f" · {duration_s}"
 
-        # Split into 2000-char chunks (Discord limit)
-        chunks = textwrap.wrap(full_text, 1900, break_long_words=False, break_on_hyphens=False)
-        if not chunks:
-            chunks = [full_text[:1900]]
-
-        for i, chunk in enumerate(chunks[:5]):  # Max 5 messages
-            embed = discord.Embed(
-                description=chunk,
-                color=0xD4845A,
-            )
-            if i == 0:
-                project = session.cwd.split("/")[-1]
-                embed.set_author(name=f"Claude · {project}")
-            await channel.send(embed=embed)
+                embed = discord.Embed(
+                    description=footer,
+                    color=0xEF4444 if is_error else 0x10B981,
+                )
+                await channel.send(embed=embed)
+                sent += 1
 
     async def setup_hook(self):
         """Called when bot starts — init DB, session manager, sync commands."""
