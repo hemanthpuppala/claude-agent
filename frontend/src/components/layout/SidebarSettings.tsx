@@ -9,7 +9,8 @@ import { notifications as notificationsApi } from "@/lib/api";
 
 export function SidebarSettings() {
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushSupported] = useState("serviceWorker" in navigator && "PushManager" in window);
+  const pushSupported = "serviceWorker" in navigator && "PushManager" in window;
+  const isSecure = window.location.protocol === "https:" || window.location.hostname === "localhost";
   const [defaultMode, setDefaultMode] = useState("acceptEdits");
   const [defaultModel, setDefaultModel] = useState("claude-opus-4-6");
 
@@ -129,16 +130,26 @@ export function SidebarSettings() {
         <div style={{ marginBottom: 24 }}>
           <SectionLabel>Push Notifications</SectionLabel>
 
-          {!pushSupported ? (
+          {(!pushSupported || !isSecure) ? (
             <div style={{
-              display: "flex", alignItems: "center", gap: 8,
+              display: "flex", flexDirection: "column", gap: 6,
               padding: "10px 12px", borderRadius: 8,
               background: "rgba(245,158,11,0.08)",
               border: "1px solid rgba(245,158,11,0.15)",
               fontSize: 12, color: "var(--color-warning)",
             }}>
-              <BellOff size={14} />
-              Push notifications not supported in this browser
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <BellOff size={14} />
+                {!isSecure
+                  ? "Requires HTTPS — use localhost or Tailscale Funnel"
+                  : "Push notifications not supported in this browser"
+                }
+              </div>
+              {!isSecure && (
+                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", paddingLeft: 22 }}>
+                  Current: {window.location.protocol}//{window.location.host}
+                </div>
+              )}
             </div>
           ) : (
             <>
