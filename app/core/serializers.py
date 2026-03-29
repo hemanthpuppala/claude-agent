@@ -90,10 +90,47 @@ def serialize_message(msg, seq: int | None = None) -> dict | None:
         content = msg.content
         # The SDK uses UserMessage for both actual user prompts AND internal
         # tool-result feedback. When content is a list (of ToolResultBlock objects),
-        # it's an internal tool result — not a real user message. Skip it entirely.
+        # extract tool results so they can be displayed under tool cards.
         if not isinstance(content, str):
-            return None
-        result = {"type": "user_echo", "content": content}
+            if isinstance(content, list):
+                blocks = []
+                for item in content:
+                    tool_use_id = getattr(item, "tool_use_id", None)
+                    if not tool_use_id:
+                        continue
+                    raw = getattr(item, "content", "")
+                    # Extract text from structured content
+                    if isinstance(raw, list):
+                        parts = []
+                        for sub in raw:
+                            if isinstance(sub, dict) and sub.get("type") == "text":
+                                parts.append(sub.get("text", ""))
+                            elif isinstance(sub, dict) and sub.get("type") == "tool_reference":
+                                continue  # internal, skip
+                            elif hasattr(sub, "text"):
+                                parts.append(sub.text)
+                        text = "\n".join(parts)
+                    elif isinstance(raw, str):
+                        text = raw
+                    else:
+                        text = str(raw) if raw else ""
+                    if text and len(text) > MAX_TOOL_RESULT_LEN:
+                        text = text[:MAX_TOOL_RESULT_LEN] + "\n... [truncated]"
+                    is_error = getattr(item, "is_error", False)
+                    blocks.append({
+                        "type": "tool_result",
+                        "tool_use_id": tool_use_id,
+                        "content": text,
+                        "is_error": bool(is_error),
+                    })
+                if blocks:
+                    result = {"type": "assistant", "content": blocks}
+                else:
+                    return None
+            else:
+                return None
+        else:
+            result = {"type": "user_echo", "content": content}
     elif isinstance(msg, SystemMessage):
         result = {
             "type": "system",
