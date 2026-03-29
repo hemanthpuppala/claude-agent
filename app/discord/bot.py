@@ -762,6 +762,33 @@ class ClaudeCodeBot(discord.Client):
 
     async def on_ready(self):
         print(f"[DISCORD] Logged in as {self.user}")
+        # Auto-discover channel-project links from existing category
+        await self._discover_channels()
+
+    async def _discover_channels(self):
+        """Scan the Claude Code category and re-link channels to projects."""
+        for guild in self.guilds:
+            for cat in guild.categories:
+                if cat.name.lower() in ("claude code", "claude-code", "claude code web"):
+                    self._category_id = cat.id
+                    for ch in cat.channels:
+                        if isinstance(ch, discord.TextChannel) and ch.topic:
+                            # Topic format: "Claude Code · /home/user/Project/name"
+                            parts = ch.topic.split("·")
+                            if len(parts) >= 2:
+                                path = parts[-1].strip()
+                                if os.path.isdir(path):
+                                    self._channel_projects[ch.id] = path
+                                    print(f"[DISCORD] Linked #{ch.name} → {path}")
+                                else:
+                                    # Try matching by channel name
+                                    guess = os.path.join(DEFAULT_PROJECT_ROOT, ch.name.replace("-", "_"))
+                                    if not os.path.isdir(guess):
+                                        guess = os.path.join(DEFAULT_PROJECT_ROOT, ch.name)
+                                    if os.path.isdir(guess):
+                                        self._channel_projects[ch.id] = guess
+                                        print(f"[DISCORD] Linked #{ch.name} → {guess}")
+        print(f"[DISCORD] Discovered {len(self._channel_projects)} project channel(s)")
 
     async def on_message(self, message: discord.Message):
         """Handle natural chat — no /ask needed."""
