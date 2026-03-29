@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Plus, FolderOpen, Star, Zap, Terminal } from "lucide-react";
-import { projects as projectsApi } from "@/lib/api";
+import { Plus, FolderOpen, Star, Zap, Terminal, Check } from "lucide-react";
+import { projects as projectsApi, sessions as sessionsApi } from "@/lib/api";
 import { useOpenTab } from "@/hooks/useOpenTab";
 import { useTabStore } from "@/stores/tabStore";
 import { colors, spacing, sidebarHeader, sidebarHeaderLabel, sidebarCountBadge, listItem, separator, hoverBg } from "@/lib/styles";
-import type { Project } from "@/lib/types";
+import type { Project, Session } from "@/lib/types";
 
 export function SidebarProjects() {
   const [saved, setSaved] = useState<Project[]>([]);
@@ -33,6 +33,33 @@ export function SidebarProjects() {
     } catch (e) {
       console.error("Failed to create session:", e);
     }
+  };
+
+  // Switch to project: find most recent session for this project, or create new
+  const switchToProject = async (path: string) => {
+    // First check if there's already an open tab for this project
+    const tabs = useTabStore.getState().tabs;
+    const existingTab = tabs.find(t =>
+      t.type === "session" && (t.project === path || t.cwd === path)
+    );
+    if (existingTab) {
+      useTabStore.getState().setActive(existingTab.id);
+      return;
+    }
+
+    // Check for existing sessions in the DB
+    try {
+      const sessions = await sessionsApi.list({ cwd: path }) as unknown as Session[];
+      if (sessions.length > 0) {
+        // Open the most recent one
+        const latest = sessions[0];
+        openSession(latest.id, path, latest.last_prompt || latest.name || "Session");
+        return;
+      }
+    } catch { /* ignore */ }
+
+    // No existing session — create new
+    await createSession(path);
   };
 
   const allProjects = [
@@ -71,10 +98,17 @@ export function SidebarProjects() {
                   p.path === activeProject ? "rgba(212,132,90,0.06)" : "transparent";
               }}
             >
-            <div style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
+            <button
+              onClick={() => switchToProject(p.path)}
+              style={{
+                display: "flex", alignItems: "center", gap: spacing.sm, width: "100%",
+                border: "none", background: "transparent", cursor: "pointer",
+                padding: 0, textAlign: "left",
+              }}
+            >
               {p.pinned
                 ? <Star size={13} color={colors.accent} fill={colors.accent} style={{ flexShrink: 0 }} />
-                : <FolderOpen size={13} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+                : <FolderOpen size={13} color={p.path === activeProject ? colors.accent : colors.textTertiary} style={{ flexShrink: 0 }} />
               }
               <span style={{
                 fontSize: 13, fontWeight: 600, color: colors.text,
@@ -82,7 +116,10 @@ export function SidebarProjects() {
               }}>
                 {p.name}
               </span>
-            </div>
+              {p.path === activeProject && (
+                <Check size={13} color={colors.accent} style={{ flexShrink: 0 }} />
+              )}
+            </button>
             <div style={{
               fontSize: 11, fontFamily: "var(--font-mono)", color: colors.textTertiary,
               marginTop: 2, paddingLeft: 21,
