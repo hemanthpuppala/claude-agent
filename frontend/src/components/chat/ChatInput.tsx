@@ -5,10 +5,17 @@ import { useMobile } from "@/hooks/useMobile";
 
 // Client-side slash commands — NOT sent to Claude
 const CLIENT_COMMANDS: Record<string, string> = {
-  "/model": "Use the permission mode toggle in the status bar to change models.",
+  "/model": "Use the status bar (bottom right) to change models.",
   "/clear": "Clear is not yet implemented. Refresh the page to start fresh.",
   "/status": "Status is shown in the status bar below.",
   "/compact": "Compact is handled automatically by the SDK.",
+  "/context": "Context usage is managed automatically by the SDK.",
+  "/skills": "Skills are loaded from .claude/skills/. View them in Settings.",
+  "/memory": "Memory files are in ~/.claude/CLAUDE.md. View in Settings.",
+  "/mcp": "MCP servers are configured in the session config (gear icon in status bar).",
+  "/tools": "Tools are configured in the session config (gear icon in status bar).",
+  "/permissions": "Use the status bar (bottom right) to change permission mode.",
+  "/fast": "Fast mode is not available in the web client.",
   "/help": "Type / to see all available commands. Use the status bar to change permissions and model.",
 };
 
