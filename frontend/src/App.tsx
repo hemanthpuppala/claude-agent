@@ -33,7 +33,7 @@ export function App() {
   // ===== MOBILE LAYOUT =====
   if (isMobile) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100dvh", background: "var(--color-bg)" }}>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden", background: "var(--color-bg)", position: "fixed", inset: 0 }}>
         {reconnecting && <ReconnectionBanner />}
 
         {/* Mobile Header */}
@@ -122,7 +122,7 @@ export function App() {
 
   // ===== DESKTOP LAYOUT =====
   return (
-    <div style={{ display: "flex", height: "100dvh", width: "100%", overflow: "hidden", background: "var(--color-bg)" }}>
+    <div style={{ display: "flex", height: "100%", width: "100%", overflow: "hidden", background: "var(--color-bg)", position: "fixed", inset: 0 }}>
       <ActivityBar />
       {sidebarOpen && <Sidebar />}
 
