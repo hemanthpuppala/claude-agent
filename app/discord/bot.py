@@ -40,6 +40,45 @@ def truncate(text: str, max_len: int = 1900) -> str:
     return text[:max_len] + "\n... [truncated]"
 
 
+def clean_markdown_for_discord(text: str) -> str:
+    """Clean markdown for Discord rendering.
+    Discord embeds don't support: headers (#), tables (|---|).
+    Convert these to Discord-compatible alternatives.
+    """
+    import re
+    lines = text.split("\n")
+    result = []
+    in_table = False
+
+    for line in lines:
+        # Convert headers to bold
+        if line.startswith("####"):
+            result.append(f"**{line.lstrip('#').strip()}**")
+        elif line.startswith("###"):
+            result.append(f"\n**{line.lstrip('#').strip()}**")
+        elif line.startswith("##"):
+            result.append(f"\n__**{line.lstrip('#').strip()}**__")
+        elif line.startswith("#"):
+            result.append(f"\n__**{line.lstrip('#').strip()}**__")
+        # Convert table separator lines to nothing
+        elif re.match(r"^\|[\s\-:|]+\|$", line):
+            continue
+        # Convert table rows to formatted text
+        elif "|" in line and line.strip().startswith("|") and line.strip().endswith("|"):
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if not in_table:
+                # Header row — bold
+                result.append("  ".join(f"**{c}**" for c in cells if c))
+                in_table = True
+            else:
+                result.append("  ".join(cells))
+        else:
+            in_table = False
+            result.append(line)
+
+    return "\n".join(result)
+
+
 def format_cost(usd: float) -> str:
     if usd == 0:
         return "$0.00"
@@ -708,7 +747,7 @@ class ClaudeCodeBot(discord.Client):
         # Post Claude's text response
         if text_parts:
             full_text = "\n\n".join(text_parts)
-            # Split into chunks if needed
+            full_text = clean_markdown_for_discord(full_text)
             # Split into 1900-char chunks — send up to 8 messages for full response
             chunks = [full_text[i:i+1900] for i in range(0, len(full_text), 1900)]
 
