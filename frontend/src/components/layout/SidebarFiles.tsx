@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { ChevronRight, FolderOpen, Folder, FileText, FileCode, FileJson, Image, File, RefreshCw, Terminal, Plus } from "lucide-react";
 import { projects, terminals as terminalsApi } from "@/lib/api";
-import { useTabStore } from "@/stores/tabStore";
+import { useOpenTab } from "@/hooks/useOpenTab";
 import { TerminalNamePrompt } from "@/components/terminal/TerminalNamePrompt";
 import { getWsUrl, basename } from "@/lib/utils";
 import type { FileNode } from "@/lib/types";
@@ -18,7 +18,7 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
   const [loading, setLoading] = useState(true);
   const [termSessions, setTermSessions] = useState<{ name: string; created_at: number; cwd: string }[]>([]);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
-  const openTab = useTabStore((s) => s.openTab);
+  const { openFile: openFileTab, openTerminal: openTerminalTab } = useOpenTab();
 
   const loadTree = useCallback(() => {
     setLoading(true);
@@ -46,22 +46,11 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
   }, [projectPath, loadTree, loadTerminals]);
 
   const openFile = (node: FileNode) => {
-    openTab({
-      id: `file-${projectPath}-${node.path}`,
-      type: "file",
-      label: node.name,
-      projectPath,
-      filePath: node.path,
-    });
+    openFileTab(projectPath, node.path, node.name);
   };
 
   const openTerminalWithName = (name: string) => {
-    openTab({
-      id: `terminal-${name}`,
-      type: "terminal",
-      label: name,
-      cwd: projectPath,
-    });
+    openTerminalTab(name, projectPath);
   };
 
   const projectName = basename(projectPath);

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Terminal, Plus, ChevronDown, ChevronRight, FolderOpen, Trash2, MoreHorizontal, Pencil, Pin } from "lucide-react";
 import { terminals as terminalsApi } from "@/lib/api";
-import { useTabStore } from "@/stores/tabStore";
+import { useOpenTab } from "@/hooks/useOpenTab";
 import { TerminalNamePrompt } from "@/components/terminal/TerminalNamePrompt";
 
 interface TermSession {
@@ -17,7 +17,7 @@ export function SidebarTerminals() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [promptCwd, setPromptCwd] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const openTab = useTabStore((s) => s.openTab);
+  const { openTerminal: openTerminalTab } = useOpenTab();
 
   const load = useCallback(() => {
     terminalsApi.list().then(setSessions).catch(() => {});
@@ -52,12 +52,7 @@ export function SidebarTerminals() {
   };
 
   const attachTerminal = (t: TermSession) => {
-    openTab({
-      id: `terminal-${t.name}`,
-      type: "terminal",
-      label: t.name,
-      cwd: t.cwd,
-    });
+    openTerminalTab(t.name, t.cwd);
   };
 
   const killTerminal = async (name: string) => {
@@ -66,12 +61,7 @@ export function SidebarTerminals() {
   };
 
   const openNewTerminal = (cwd: string, name: string) => {
-    openTab({
-      id: `terminal-${name}`,
-      type: "terminal",
-      label: name,
-      cwd,
-    });
+    openTerminalTab(name, cwd);
     load();
   };
 

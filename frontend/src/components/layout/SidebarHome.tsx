@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Plus, Zap, ChevronDown, ChevronRight, FolderOpen, FolderTree, MoreHorizontal, Pin, Pencil, Trash2 } from "lucide-react";
 import { sessions as sessionsApi } from "@/lib/api";
-import { useTabStore } from "@/stores/tabStore";
+import { useOpenTab } from "@/hooks/useOpenTab";
 import { useUIStore } from "@/stores/uiStore";
 import { formatDate, formatCost, truncate } from "@/lib/utils";
 import type { Session } from "@/lib/types";
@@ -10,7 +10,7 @@ export function SidebarHome() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const openTab = useTabStore((s) => s.openTab);
+  const { openSession: openSessionTab, openFile: openFileTab } = useOpenTab();
   const setSidebarPanel = useUIStore((s) => s.setSidebarPanel);
 
   useEffect(() => {
@@ -48,25 +48,11 @@ export function SidebarHome() {
   };
 
   const openSession = (s: Session) => {
-    const project = s.cwd.split("/").pop() || "project";
-    openTab({
-      id: `session-${s.id}`,
-      type: "session",
-      label: `${project}: ${truncate(s.last_prompt || "Session", 30)}`,
-      sessionId: s.id,
-      project: s.cwd,
-    });
+    openSessionTab(s.id, s.cwd, s.last_prompt || s.name || "Session");
   };
 
   const openFiles = (cwd: string) => {
-    // Switch to files panel with this project
-    openTab({
-      id: `files-${cwd}`,
-      type: "file",
-      label: `Files: ${cwd.split("/").pop()}`,
-      projectPath: cwd,
-      filePath: "",
-    });
+    openFileTab(cwd, "", `Files: ${cwd.split("/").pop()}`);
     setSidebarPanel("files");
   };
 

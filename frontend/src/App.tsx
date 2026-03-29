@@ -15,8 +15,10 @@ import { SidebarFiles } from "@/components/layout/SidebarFiles";
 import { useTabStore } from "@/stores/tabStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useIsMobile } from "@/hooks/useMediaQuery";
+import { useRouteSync } from "@/hooks/useRouteSync";
 
 export function App() {
+  useRouteSync();
   const activeTabId = useTabStore((s) => s.activeTabId);
   const tabs = useTabStore((s) => s.tabs);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Zap, CheckCircle, XCircle, ArrowRight, FolderOpen } from "lucide-react";
 import { sessions as sessionsApi, projects as projectsApi } from "@/lib/api";
-import { useTabStore } from "@/stores/tabStore";
+import { useOpenTab } from "@/hooks/useOpenTab";
 import { formatCost, formatTimeAgo, truncate } from "@/lib/utils";
 import { PushOnboarding } from "@/components/notifications/PushOnboarding";
 import { useMobile } from "@/hooks/useMobile";
@@ -10,7 +10,7 @@ import type { Session } from "@/lib/types";
 export function DashboardView() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [discovered, setDiscovered] = useState<{ name: string; path: string }[]>([]);
-  const openTab = useTabStore((s) => s.openTab);
+  const { openSession: openSessionTab } = useOpenTab();
 
   useEffect(() => {
     const load = () => sessionsApi.list().then((d) => setSessions(d as unknown as Session[]));
@@ -25,17 +25,10 @@ export function DashboardView() {
   const recent = sessions.filter((s) => !["thinking", "waiting_permission"].includes(s.status));
 
   const openSession = (s: Session) => {
-    openTab({
-      id: `session-${s.id}`,
-      type: "session",
-      label: `${s.name || s.cwd.split("/").pop()}: ${truncate(s.last_prompt || "Session", 30)}`,
-      sessionId: s.id,
-      project: s.cwd,
-    });
+    openSessionTab(s.id, s.cwd, s.last_prompt || s.name || "Session");
   };
 
   const createSession = async (path: string) => {
-    const name = path.split("/").pop() || "project";
     try {
       const res = await fetch("/api/sessions", {
         method: "POST",
@@ -43,13 +36,7 @@ export function DashboardView() {
         body: JSON.stringify({ cwd: path }),
       });
       const data = await res.json();
-      openTab({
-        id: `session-${data.session_id}`,
-        type: "session",
-        label: `${name}: New session`,
-        sessionId: data.session_id,
-        project: path,
-      });
+      openSessionTab(data.session_id, path, "New session");
     } catch (e) {
       console.error(e);
     }

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Plus, FolderOpen, Star } from "lucide-react";
 import { projects as projectsApi } from "@/lib/api";
-import { useTabStore } from "@/stores/tabStore";
+import { useOpenTab } from "@/hooks/useOpenTab";
 import type { Project } from "@/lib/types";
 
 export function SidebarProjects() {
   const [saved, setSaved] = useState<Project[]>([]);
   const [discovered, setDiscovered] = useState<{ name: string; path: string }[]>([]);
-  const openTab = useTabStore((s) => s.openTab);
+  const { openSession } = useOpenTab();
 
   useEffect(() => {
     projectsApi.list().then((data) => setSaved(data as unknown as Project[]));
@@ -17,7 +17,7 @@ export function SidebarProjects() {
   const allPaths = new Set(saved.map((p) => p.path));
   const unsaved = discovered.filter((d) => !allPaths.has(d.path));
 
-  const createSession = async (path: string, name: string) => {
+  const createSession = async (path: string) => {
     try {
       const res = await fetch("/api/sessions", {
         method: "POST",
@@ -25,13 +25,7 @@ export function SidebarProjects() {
         body: JSON.stringify({ cwd: path }),
       });
       const data = await res.json();
-      openTab({
-        id: `session-${data.session_id}`,
-        type: "session",
-        label: `${name}: New session`,
-        sessionId: data.session_id,
-        project: path,
-      });
+      openSession(data.session_id, path, "New session");
     } catch (e) {
       console.error("Failed to create session:", e);
     }
@@ -62,7 +56,7 @@ export function SidebarProjects() {
               {p.path}
             </div>
             <button
-              onClick={() => createSession(p.path, p.name)}
+              onClick={() => createSession(p.path)}
               className="mt-1 ml-5 text-[11px] text-[var(--color-accent)] hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
             >
               + New Session
@@ -84,7 +78,7 @@ export function SidebarProjects() {
                   </span>
                 </div>
                 <button
-                  onClick={() => createSession(d.path, d.name)}
+                  onClick={() => createSession(d.path)}
                   className="mt-1 ml-5 text-[11px] text-[var(--color-accent)] hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   + New Session
