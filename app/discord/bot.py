@@ -142,25 +142,104 @@ class PermissionView(discord.ui.View):
 class ClaudeCodeBot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
+        intents.message_content = True  # Required to read messages in channels
         super().__init__(intents=intents)
 
         self.tree = app_commands.CommandTree(self)
         self.db = None
         self.notifications = None
         self.manager: SessionManager | None = None
-        # Channel → project path mapping (persisted in memory, auto-discovered)
+        # Channel → project path mapping
         self._channel_projects: dict[int, str] = {}  # channel_id → project_path
-        # Channel → active session mapping
-        self._channel_sessions: dict[int, str] = {}  # channel_id → session_id
+        # Thread → session mapping
+        self._thread_sessions: dict[int, str] = {}  # thread_id → session_id
+        # Category ID for auto-created channels
+        self._category_id: int | None = None
         self._setup_commands()
 
     def _get_project_for_channel(self, channel_id: int) -> str | None:
-        """Get the project path linked to a channel."""
+        """Get the project path linked to a channel (or thread's parent channel)."""
         return self._channel_projects.get(channel_id)
 
-    def _get_session_for_channel(self, channel_id: int) -> str | None:
-        """Get the active session ID for a channel."""
-        return self._channel_sessions.get(channel_id)
+    def _get_session_for_thread(self, thread_id: int) -> str | None:
+        """Get the session ID for a thread."""
+        return self._thread_sessions.get(thread_id)
+
+    async def _get_or_create_category(self, guild: discord.Guild) -> discord.CategoryChannel:
+        """Get or create the 'Claude Code' category."""
+        if self._category_id:
+            cat = guild.get_channel(self._category_id)
+            if cat:
+                return cat
+
+        # Find existing
+        for cat in guild.categories:
+            if cat.name.lower() in ("claude code", "claude-code", "claude code web"):
+                self._category_id = cat.id
+                return cat
+
+        # Create new
+        cat = await guild.create_category("Claude Code", reason="Auto-created for Claude Code Web")
+        self._category_id = cat.id
+        print(f"[DISCORD] Created category: {cat.name}")
+        return cat
+
+    async def _get_or_create_project_channel(self, guild: discord.Guild, project_name: str, project_path: str) -> discord.TextChannel:
+        """Get or create a channel for a project under the Claude Code category."""
+        # Check if we already have it mapped
+        for ch_id, path in self._channel_projects.items():
+            if path == project_path:
+                ch = guild.get_channel(ch_id)
+                if ch:
+                    return ch
+
+        category = await self._get_or_create_category(guild)
+        channel_name = project_name.lower().replace(" ", "-").replace("_", "-")
+
+        # Find existing channel in category
+        for ch in category.channels:
+            if isinstance(ch, discord.TextChannel) and ch.name == channel_name:
+                self._channel_projects[ch.id] = project_path
+                return ch
+
+        # Create new channel
+        ch = await guild.create_text_channel(
+            channel_name,
+            category=category,
+            topic=f"Claude Code · {project_path}",
+            reason=f"Auto-created for project: {project_name}",
+        )
+        self._channel_projects[ch.id] = project_path
+        print(f"[DISCORD] Created channel: #{channel_name}")
+
+        # Post welcome message
+        embed = discord.Embed(
+            title=f"📁 {project_name}",
+            description=(
+                f"**Path:** `{project_path}`\n\n"
+                f"Use `/ask <prompt>` to chat with Claude.\n"
+                f"Each conversation creates a thread automatically."
+            ),
+            color=0xD4845A,
+        )
+        await ch.send(embed=embed)
+        return ch
+
+    async def _create_session_thread(self, channel: discord.TextChannel, project_path: str, first_prompt: str) -> tuple:
+        """Create a new thread for a Claude session."""
+        # Create session in backend
+        session = await self.manager.create(project_path)
+
+        # Create thread
+        thread_name = truncate(first_prompt, 95)  # Discord thread name limit
+        thread = await channel.create_thread(
+            name=thread_name,
+            type=discord.ChannelType.public_thread,
+            reason="New Claude session",
+        )
+        self._thread_sessions[thread.id] = session.id
+        print(f"[DISCORD] Created thread: {thread_name} → session {session.id[:8]}")
+        return session, thread
 
     def _setup_commands(self):
         """Register all slash commands."""
@@ -368,7 +447,33 @@ class ClaudeCodeBot(discord.Client):
                 embed.set_footer(text=f"This channel → {current_name}")
             await interaction.response.send_message(embed=embed)
 
-        @self.tree.command(name="start", description="Start a Claude session for a project in this channel")
+        @self.tree.command(name="init", description="Set up ALL projects — creates channels for each")
+        async def cmd_init(interaction: discord.Interaction):
+            root = DEFAULT_PROJECT_ROOT
+            if not os.path.isdir(root):
+                await interaction.response.send_message(f"❌ `{root}` not found.", ephemeral=True)
+                return
+
+            await interaction.response.defer()
+            projects = sorted([
+                name for name in os.listdir(root)
+                if os.path.isdir(os.path.join(root, name)) and not name.startswith(".")
+            ])
+
+            created = []
+            for name in projects:
+                path = os.path.join(root, name)
+                ch = await self._get_or_create_project_channel(interaction.guild, name, path)
+                created.append(ch.mention)
+
+            embed = discord.Embed(
+                title="⚡ All projects initialized",
+                description="\n".join(f"📁 {ch}" for ch in created) + "\n\n_Type a message in any channel to start chatting with Claude._",
+                color=0xD4845A,
+            )
+            await interaction.followup.send(embed=embed)
+
+        @self.tree.command(name="start", description="Set up a project — creates a channel and links it")
         @app_commands.describe(project="Project directory name")
         async def cmd_start(interaction: discord.Interaction, project: str):
             project_path = os.path.join(DEFAULT_PROJECT_ROOT, project)
@@ -378,21 +483,16 @@ class ClaudeCodeBot(discord.Client):
 
             await interaction.response.defer()
 
-            # Link this channel to the project
-            self._channel_projects[interaction.channel_id] = project_path
-
-            # Create a new session
-            session = await self.manager.create(project_path)
-            self._channel_sessions[interaction.channel_id] = session.id
+            # Auto-create project channel
+            channel = await self._get_or_create_project_channel(interaction.guild, project, project_path)
 
             embed = discord.Embed(
-                title=f"⚡ Session started — {project}",
+                title=f"⚡ Project ready — {project}",
                 description=(
-                    f"**Project:** `{project_path}`\n"
-                    f"**Session:** `{session.id[:8]}`\n"
-                    f"**Mode:** {session.permission_mode}\n\n"
-                    f"This channel is now linked to **{project}**.\n"
-                    f"Use `/ask <prompt>` to chat with Claude."
+                    f"**Channel:** {channel.mention}\n"
+                    f"**Path:** `{project_path}`\n\n"
+                    f"Go to {channel.mention} and use `/ask <prompt>` to chat with Claude.\n"
+                    f"Each conversation creates a new thread."
                 ),
                 color=0xD4845A,
             )
@@ -597,6 +697,86 @@ class ClaudeCodeBot(discord.Client):
 
     async def on_ready(self):
         print(f"[DISCORD] Logged in as {self.user}")
+
+    async def on_message(self, message: discord.Message):
+        """Handle natural chat — no /ask needed."""
+        # Ignore bot's own messages
+        if message.author == self.user:
+            return
+        # Ignore slash commands
+        if message.content.startswith("/"):
+            return
+        # Ignore empty messages
+        if not message.content.strip():
+            return
+
+        channel = message.channel
+
+        # Case 1: Message in a THREAD → continue that session
+        if isinstance(channel, discord.Thread):
+            session_id = self._thread_sessions.get(channel.id)
+            parent_id = channel.parent_id
+            project_path = self._channel_projects.get(parent_id) if parent_id else None
+
+            if not session_id or not project_path:
+                return  # Not a Claude thread
+
+            session = self.manager.get(session_id)
+            if not session:
+                try:
+                    session = await self.manager.restore(session_id)
+                except Exception:
+                    await channel.send("❌ Session expired. Start a new conversation in the project channel.")
+                    return
+
+            # Send prompt
+            async with channel.typing():
+                prev_count = len(session.message_log)
+                await self.manager.send_query(session, message.content)
+
+                # Wait for result
+                for _ in range(180):
+                    await asyncio.sleep(1)
+                    if session.status == "idle" and len(session.message_log) > prev_count:
+                        break
+                    if session.status == "waiting_permission":
+                        for msg in reversed(session.message_log):
+                            if msg.get("type") == "permission_request":
+                                await self._post_permission(channel, session, msg)
+                                break
+                        while session.status == "waiting_permission":
+                            await asyncio.sleep(1)
+
+                await self._post_session_messages(channel, session, after=prev_count)
+            return
+
+        # Case 2: Message in a PROJECT CHANNEL → create new thread/session
+        if isinstance(channel, discord.TextChannel):
+            project_path = self._channel_projects.get(channel.id)
+            if not project_path:
+                return  # Not a project channel
+
+            # Create thread + session
+            session, thread = await self._create_session_thread(channel, project_path, message.content)
+
+            # Move the conversation to the thread
+            async with thread.typing():
+                prev_count = len(session.message_log)
+                await self.manager.send_query(session, message.content)
+
+                for _ in range(180):
+                    await asyncio.sleep(1)
+                    if session.status == "idle" and len(session.message_log) > prev_count:
+                        break
+                    if session.status == "waiting_permission":
+                        for msg in reversed(session.message_log):
+                            if msg.get("type") == "permission_request":
+                                await self._post_permission(thread, session, msg)
+                                break
+                        while session.status == "waiting_permission":
+                            await asyncio.sleep(1)
+
+                await self._post_session_messages(thread, session, after=prev_count)
 
     async def close(self):
         if self.db:
