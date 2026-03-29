@@ -3,9 +3,21 @@
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from app.config import NTFY_TOPIC, NTFY_SERVER
 from app.database.queries.push import get_all_push_subscriptions
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
+
+
+@router.get("/ntfy-info")
+async def ntfy_info():
+    """Get ntfy.sh topic info for mobile setup."""
+    return {
+        "topic": NTFY_TOPIC,
+        "server": NTFY_SERVER,
+        "subscribe_url": f"{NTFY_SERVER}/{NTFY_TOPIC}",
+        "app_url": f"ntfy://{NTFY_TOPIC}",
+    }
 
 
 class PushSubscription(BaseModel):
@@ -76,5 +88,12 @@ async def test_push(request: Request):
         print("[PUSH TEST] send_status_push completed")
     except Exception as e:
         print(f"[PUSH TEST] ERROR: {e}")
-        return {"status": "error", "message": str(e)}
+
+    # Also send via ntfy
+    try:
+        await mgr.send_ntfy_test()
+        print("[NTFY TEST] sent")
+    except Exception as e:
+        print(f"[NTFY TEST] ERROR: {e}")
+
     return {"status": "sent", "subscriptions": len(subs)}

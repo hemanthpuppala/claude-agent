@@ -338,18 +338,15 @@ class SessionManager:
 
                     # Push notification if no browser attached
                     if not session.attached_ws:
+                        project_name = session.cwd.split("/")[-1]
                         is_error = getattr(msg, "is_error", False)
                         if is_error:
-                            await self._notifications.send_status_push(
-                                session.id, session.cwd.split("/")[-1],
-                                "Task failed", str(getattr(msg, "result", "Unknown error")),
-                            )
+                            title, body = "Task failed", str(getattr(msg, "result", "Unknown error"))
                         else:
-                            await self._notifications.send_status_push(
-                                session.id, session.cwd.split("/")[-1],
-                                "Task complete",
-                                f"${cost:.4f} · {turns} turns" if cost else "Done",
-                            )
+                            title = "Task complete"
+                            body = f"${cost:.4f} · {turns} turns" if cost else "Done"
+                        await self._notifications.send_status_push(session.id, project_name, title, body)
+                        await self._notifications.send_ntfy_status(session.id, project_name, title, body)
 
         except asyncio.CancelledError:
             pass
@@ -417,12 +414,19 @@ class SessionManager:
                 self._db, session.id, session.message_seq,
                 "permission_request", json.dumps(perm_msg),
             )
+            # Send both web push AND ntfy (covers desktop + mobile)
             await self._notifications.send_permission_push(
                 session_id=session.id,
                 session_name=session.cwd.split("/")[-1],
                 tool_name=tool_name,
                 tool_input=safe_input,
                 request_id=request_id,
+            )
+            await self._notifications.send_ntfy_permission(
+                session_id=session.id,
+                session_name=session.cwd.split("/")[-1],
+                tool_name=tool_name,
+                tool_input=safe_input,
             )
 
         try:

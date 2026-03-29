@@ -1,15 +1,17 @@
-"""Web Push notification manager — VAPID keys + pywebpush."""
+"""Notification manager — Web Push (desktop) + ntfy.sh (mobile)."""
 
 import base64
 import json
 import logging
+import urllib.request
+import urllib.error
 
 import aiosqlite
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 from pywebpush import webpush, WebPushException
 
-from app.config import VAPID_CONTACT
+from app.config import VAPID_CONTACT, NTFY_TOPIC, NTFY_SERVER, PUBLIC_URL
 from app.database.queries.push import (
     get_vapid_keys, save_vapid_keys,
     get_all_push_subscriptions, delete_push_subscription,
@@ -132,6 +134,65 @@ class NotificationManager:
 
         for endpoint in dead_endpoints:
             await delete_push_subscription(self._db, endpoint)
+
+    # ===== ntfy.sh — mobile notifications =====
+
+    def _send_ntfy(self, title: str, body: str, click_url: str = "",
+                   tags: str = "robot", priority: str = "default"):
+        """Send a notification via ntfy.sh (synchronous, fire-and-forget)."""
+        if not NTFY_TOPIC:
+            return
+        url = f"{NTFY_SERVER}/{NTFY_TOPIC}"
+        headers = {
+            "Title": title,
+            "Tags": tags,
+            "Priority": priority,
+        }
+        if click_url:
+            headers["Click"] = click_url
+        try:
+            req = urllib.request.Request(
+                url, data=body.encode("utf-8"),
+                headers=headers, method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"[NTFY] Sent OK — {resp.status}")
+        except Exception as e:
+            print(f"[NTFY] Error: {e}")
+
+    async def send_ntfy_permission(self, session_id: str, session_name: str,
+                                    tool_name: str, tool_input: dict):
+        """Send permission request via ntfy — notification only, approve in browser."""
+        summary = self._summarize_tool(tool_name, tool_input)
+        click_url = f"{PUBLIC_URL}/project/{session_name}/session/{session_id}"
+        self._send_ntfy(
+            title=f"🔔 Claude needs permission",
+            body=f"[{session_name}] {summary}\n\nTap to open and approve/deny.",
+            click_url=click_url,
+            tags="warning",
+            priority="high",
+        )
+
+    async def send_ntfy_status(self, session_id: str, session_name: str,
+                                title: str, body: str):
+        """Send status notification via ntfy (task complete, error, etc.)."""
+        click_url = f"{PUBLIC_URL}/project/{session_name}/session/{session_id}"
+        self._send_ntfy(
+            title=title,
+            body=f"[{session_name}] {body}",
+            click_url=click_url,
+            tags="white_check_mark" if "complete" in title.lower() else "x",
+        )
+
+    async def send_ntfy_test(self):
+        """Send a test ntfy notification."""
+        self._send_ntfy(
+            title="🔔 Claude Code Web",
+            body="Ntfy notifications are working! Tap to open.",
+            click_url=PUBLIC_URL,
+            tags="tada",
+            priority="high",
+        )
 
     @staticmethod
     def _summarize_tool(tool_name: str, tool_input: dict) -> str:

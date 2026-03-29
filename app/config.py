@@ -60,5 +60,14 @@ TERMINAL_COLS = 120
 # Push notifications
 VAPID_CONTACT = "mailto:internal@localhost"
 
+# Ntfy.sh — free push notifications for mobile
+# Set a unique topic name (acts like a channel). Anyone with the topic can receive.
+# Leave empty to disable ntfy.
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "claude-code-web-" + os.environ.get("USER", "default"))
+NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
+
+# Public URL for the app (used in ntfy notification links)
+PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://hemanth.tail50655e.ts.net")
+
 # Serializer limits
 MAX_TOOL_RESULT_LEN = 100_000
