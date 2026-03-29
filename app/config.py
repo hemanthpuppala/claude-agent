@@ -69,5 +69,9 @@ NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
 # Public URL for the app (used in ntfy notification links)
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://hemanth.tail50655e.ts.net")
 
+# Discord bot
+DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+DISCORD_GUILD_ID = os.environ.get("DISCORD_GUILD_ID", "")  # Your server ID
+
 # Serializer limits
 MAX_TOOL_RESULT_LEN = 100_000
