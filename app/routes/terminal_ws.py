@@ -1,10 +1,10 @@
 """Terminal WebSocket — PTY-based shell access via ptyprocess + tmux."""
 
 import asyncio
-import hashlib
 import logging
 import os
 import shutil
+import subprocess
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ptyprocess import PtyProcess
@@ -15,12 +15,71 @@ router = APIRouter(tags=["terminal"])
 log = logging.getLogger(__name__)
 
 
-def _tmux_session_name(cwd: str) -> str:
-    """Generate a stable tmux session name from cwd."""
-    short = cwd.rstrip("/").split("/")[-1] or "home"
-    # Add hash suffix to avoid collisions between dirs with same name
-    h = hashlib.md5(cwd.encode()).hexdigest()[:6]
-    return f"web-{short}-{h}"
+@router.get("/api/terminals")
+async def api_list_terminals():
+    """List all active tmux sessions created by this app."""
+    tmux_bin = shutil.which("tmux")
+    if not tmux_bin:
+        return []
+    try:
+        result = subprocess.run(
+            [tmux_bin, "list-sessions", "-F",
+             "#{session_name}\t#{session_created}\t#{session_windows}\t#{pane_current_path}"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return []
+        sessions = []
+        for line in result.stdout.strip().split("\n"):
+            if not line.strip():
+                continue
+            parts = line.split("\t")
+            name = parts[0]
+            created = int(parts[1]) if len(parts) > 1 else 0
+            windows = int(parts[2]) if len(parts) > 2 else 1
+            cwd = parts[3] if len(parts) > 3 else ""
+            sessions.append({
+                "name": name,
+                "created_at": created,
+                "windows": windows,
+                "cwd": cwd,
+                "project": cwd.rstrip("/").split("/")[-1] if cwd else "",
+            })
+        return sessions
+    except Exception:
+        return []
+
+
+@router.post("/api/terminals/{name}/rename")
+async def api_rename_terminal(name: str, new_name: str):
+    """Rename a tmux session."""
+    tmux_bin = shutil.which("tmux")
+    if not tmux_bin:
+        return {"error": "tmux not found"}
+    try:
+        subprocess.run(
+            [tmux_bin, "rename-session", "-t", name, new_name],
+            capture_output=True, timeout=5,
+        )
+        return {"renamed": True, "old": name, "new": new_name}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.delete("/api/terminals/{name}")
+async def api_kill_terminal(name: str):
+    """Kill a tmux session."""
+    tmux_bin = shutil.which("tmux")
+    if not tmux_bin:
+        return {"error": "tmux not found"}
+    try:
+        subprocess.run(
+            [tmux_bin, "kill-session", "-t", name],
+            capture_output=True, timeout=5,
+        )
+        return {"killed": True}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @router.websocket("/ws/terminal")
@@ -32,7 +91,24 @@ async def ws_terminal(websocket: WebSocket):
         cwd = os.path.expanduser("~")
 
     tmux_bin = shutil.which("tmux")
-    session_name = _tmux_session_name(cwd)
+    # Use custom name from query param, or default to project-based name
+    session_name = websocket.query_params.get("name", "")
+    if not session_name:
+        project = cwd.rstrip("/").split("/")[-1] or "home"
+        # Count existing sessions for this project to auto-increment
+        n = 1
+        if tmux_bin:
+            try:
+                result = subprocess.run(
+                    [tmux_bin, "list-sessions", "-F", "#{session_name}"],
+                    capture_output=True, text=True, timeout=3,
+                )
+                existing = result.stdout.strip().split("\n") if result.returncode == 0 else []
+                while f"{project}-{n}" in existing:
+                    n += 1
+            except Exception:
+                pass
+        session_name = f"{project}-{n}"
 
     env = os.environ.copy()
     env["TERM"] = "xterm-256color"

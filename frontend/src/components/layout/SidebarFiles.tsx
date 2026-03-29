@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { ChevronRight, FolderOpen, Folder, FileText, FileCode, FileJson, Image, File, RefreshCw, Terminal } from "lucide-react";
-import { projects } from "@/lib/api";
+import { ChevronRight, FolderOpen, Folder, FileText, FileCode, FileJson, Image, File, RefreshCw, Terminal, Plus } from "lucide-react";
+import { projects, terminals as terminalsApi } from "@/lib/api";
 import { useTabStore } from "@/stores/tabStore";
+import { TerminalNamePrompt } from "@/components/terminal/TerminalNamePrompt";
 import { getWsUrl, basename } from "@/lib/utils";
 import type { FileNode } from "@/lib/types";
 
@@ -15,6 +16,8 @@ const EXT_ICONS: Record<string, typeof FileText> = {
 export function SidebarFiles({ projectPath }: { projectPath: string }) {
   const [tree, setTree] = useState<FileNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [termSessions, setTermSessions] = useState<{ name: string; created_at: number; cwd: string }[]>([]);
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
   const openTab = useTabStore((s) => s.openTab);
 
   const loadTree = useCallback(() => {
@@ -25,18 +28,22 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
     }).catch(() => setLoading(false));
   }, [projectPath]);
 
+  const loadTerminals = useCallback(() => {
+    terminalsApi.list().then((all) => {
+      setTermSessions(all.filter((t) => t.cwd === projectPath || t.project === basename(projectPath)));
+    }).catch(() => {});
+  }, [projectPath]);
+
   useEffect(() => {
     loadTree();
+    loadTerminals();
 
-    // Live updates via WebSocket
     const url = getWsUrl(`/ws/watch?path=${encodeURIComponent(projectPath)}`);
     const ws = new WebSocket(url);
-    ws.onmessage = () => {
-      // Debounced reload on any fs_change
-      loadTree();
-    };
-    return () => ws.close();
-  }, [projectPath, loadTree]);
+    ws.onmessage = () => loadTree();
+    const termInterval = setInterval(loadTerminals, 5000);
+    return () => { ws.close(); clearInterval(termInterval); };
+  }, [projectPath, loadTree, loadTerminals]);
 
   const openFile = (node: FileNode) => {
     openTab({
@@ -48,16 +55,17 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
     });
   };
 
-  const openTerminal = () => {
+  const openTerminalWithName = (name: string) => {
     openTab({
-      id: `terminal-${projectPath}-${Date.now()}`,
+      id: `terminal-${name}`,
       type: "terminal",
-      label: `Terminal: ${basename(projectPath)}`,
+      label: name,
       cwd: projectPath,
     });
   };
 
   const projectName = basename(projectPath);
+  const defaultTermName = `${projectName}-${termSessions.length + 1}`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -71,7 +79,7 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
           {projectName}
         </span>
         <div style={{ display: "flex", gap: 4 }}>
-          <IconButton title="Open terminal" onClick={openTerminal}>
+          <IconButton title="New terminal" onClick={() => setShowNamePrompt(true)}>
             <Terminal size={14} />
           </IconButton>
           <IconButton title="Refresh" onClick={loadTree}>
@@ -92,13 +100,70 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
         ))}
       </div>
 
-      {/* Footer hint */}
+      {/* Terminal Sessions */}
+      {termSessions.length > 0 && (
+        <div style={{ flexShrink: 0, borderTop: "1px solid var(--color-border-subtle)" }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "8px 16px 4px",
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-tertiary)" }}>
+              Terminals
+            </span>
+            <button
+              onClick={() => setShowNamePrompt(true)}
+              style={{
+                width: 20, height: 20, borderRadius: 4, border: "none",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", color: "var(--color-text-tertiary)", cursor: "pointer",
+              }}
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+          {termSessions.map((t) => (
+            <button
+              key={t.name}
+              onClick={() => openTerminalWithName(t.name)}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, width: "100%",
+                padding: "6px 16px", border: "none", background: "transparent",
+                cursor: "pointer", textAlign: "left", transition: "background 0.1s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <Terminal size={13} color="var(--color-tool-execute)" />
+              <span style={{ fontSize: 12, color: "var(--color-text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {t.name}
+              </span>
+              <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--color-text-tertiary)" }}>
+                {new Date(t.created_at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
       <div style={{
         padding: "8px 16px", fontSize: 11, color: "var(--color-text-tertiary)",
-        borderTop: "1px solid var(--color-border-subtle)",
+        borderTop: "1px solid var(--color-border-subtle)", flexShrink: 0,
       }}>
         Click files to view · Drag to chat
       </div>
+
+      {/* Terminal Name Prompt */}
+      {showNamePrompt && (
+        <TerminalNamePrompt
+          defaultName={defaultTermName}
+          onConfirm={(name) => {
+            setShowNamePrompt(false);
+            openTerminalWithName(name);
+          }}
+          onCancel={() => setShowNamePrompt(false)}
+        />
+      )}
     </div>
   );
 }

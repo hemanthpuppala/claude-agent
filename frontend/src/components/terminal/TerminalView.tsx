@@ -5,7 +5,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { getWsUrl } from "@/lib/utils";
 
-export function TerminalView({ cwd }: { cwd: string }) {
+export function TerminalView({ cwd, name }: { cwd: string; name?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -65,7 +65,9 @@ export function TerminalView({ cwd }: { cwd: string }) {
     fitRef.current = fit;
 
     // Connect WebSocket
-    const url = getWsUrl(`/ws/terminal?cwd=${encodeURIComponent(cwd)}`);
+    const params = new URLSearchParams({ cwd });
+    if (name) params.set("name", name);
+    const url = getWsUrl(`/ws/terminal?${params}`);
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
@@ -110,7 +112,7 @@ export function TerminalView({ cwd }: { cwd: string }) {
       wsRef.current = null;
       fitRef.current = null;
     };
-  }, [cwd]);
+  }, [cwd, name]);
 
   return (
     <div

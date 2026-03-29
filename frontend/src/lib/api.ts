@@ -60,6 +60,16 @@ export const projects = {
     }),
 };
 
+/* Terminals */
+
+export const terminals = {
+  list: () => request<{ name: string; created_at: number; windows: number; cwd: string; project: string }[]>("/api/terminals"),
+  rename: (name: string, newName: string) =>
+    request<{ renamed: boolean }>(`/api/terminals/${encodeURIComponent(name)}/rename?new_name=${encodeURIComponent(newName)}`, { method: "POST" }),
+  kill: (name: string) =>
+    request<{ killed: boolean }>(`/api/terminals/${encodeURIComponent(name)}`, { method: "DELETE" }),
+};
+
 /* Commands */
 
 export const commands = {

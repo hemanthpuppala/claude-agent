@@ -53,7 +53,7 @@ export function App() {
             <ChatView sessionId={activeTab.sessionId} cwd={activeTab.project} />
           )}
           {activeTab?.type === "terminal" && activeTab.cwd && (
-            <TerminalView cwd={activeTab.cwd} />
+            <TerminalView cwd={activeTab.cwd} name={activeTab.label} />
           )}
           {activeTab?.type === "file" && activeTab.projectPath && activeTab.filePath && (
             <FileViewer projectPath={activeTab.projectPath} filePath={activeTab.filePath} />
@@ -136,7 +136,7 @@ export function App() {
             <ChatView sessionId={activeTab.sessionId} cwd={activeTab.project} />
           )}
           {activeTab?.type === "terminal" && activeTab.cwd && (
-            <TerminalView cwd={activeTab.cwd} />
+            <TerminalView cwd={activeTab.cwd} name={activeTab.label} />
           )}
           {activeTab?.type === "file" && activeTab.projectPath && activeTab.filePath && (
             <FileViewer projectPath={activeTab.projectPath} filePath={activeTab.filePath} />
