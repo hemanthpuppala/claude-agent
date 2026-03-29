@@ -166,7 +166,7 @@ class NotificationManager:
         summary = self._summarize_tool(tool_name, tool_input)
         click_url = f"{PUBLIC_URL}/project/{session_name}/session/{session_id}"
         self._send_ntfy(
-            title=f"🔔 Claude needs permission",
+            title="Claude needs permission",
             body=f"[{session_name}] {summary}\n\nTap to open and approve/deny.",
             click_url=click_url,
             tags="warning",
@@ -187,7 +187,7 @@ class NotificationManager:
     async def send_ntfy_test(self):
         """Send a test ntfy notification."""
         self._send_ntfy(
-            title="🔔 Claude Code Web",
+            title="Claude Code Web",
             body="Ntfy notifications are working! Tap to open.",
             click_url=PUBLIC_URL,
             tags="tada",
