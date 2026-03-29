@@ -455,23 +455,32 @@ class ClaudeCodeBot(discord.Client):
                 return
 
             await interaction.response.defer()
-            projects = sorted([
-                name for name in os.listdir(root)
-                if os.path.isdir(os.path.join(root, name)) and not name.startswith(".")
-            ])
+            try:
+                projects = sorted([
+                    name for name in os.listdir(root)
+                    if os.path.isdir(os.path.join(root, name)) and not name.startswith(".")
+                ])
 
-            created = []
-            for name in projects:
-                path = os.path.join(root, name)
-                ch = await self._get_or_create_project_channel(interaction.guild, name, path)
-                created.append(ch.mention)
+                created = []
+                for name in projects:
+                    path = os.path.join(root, name)
+                    try:
+                        ch = await self._get_or_create_project_channel(interaction.guild, name, path)
+                        created.append(ch.mention)
+                    except Exception as e:
+                        print(f"[DISCORD] Failed to create channel for {name}: {e}")
+                        created.append(f"❌ {name} (failed)")
 
-            embed = discord.Embed(
-                title="⚡ All projects initialized",
-                description="\n".join(f"📁 {ch}" for ch in created) + "\n\n_Type a message in any channel to start chatting with Claude._",
-                color=0xD4845A,
-            )
-            await interaction.followup.send(embed=embed)
+                embed = discord.Embed(
+                    title="⚡ All projects initialized",
+                    description="\n".join(f"📁 {ch}" for ch in created) + "\n\n_Type a message in any channel to start chatting with Claude._",
+                    color=0xD4845A,
+                )
+                await interaction.followup.send(embed=embed)
+            except Exception as e:
+                print(f"[DISCORD] /init error: {e}")
+                import traceback; traceback.print_exc()
+                await interaction.followup.send(f"❌ Error: {e}")
 
         @self.tree.command(name="start", description="Set up a project — creates a channel and links it")
         @app_commands.describe(project="Project directory name")
@@ -711,7 +720,20 @@ class ClaudeCodeBot(discord.Client):
             return
 
         channel = message.channel
+        print(f"[DISCORD] Message in {channel} ({type(channel).__name__}): {message.content[:60]}")
 
+        try:
+            await self._handle_message(message, channel)
+        except Exception as e:
+            print(f"[DISCORD] on_message error: {e}")
+            import traceback; traceback.print_exc()
+            try:
+                await channel.send(f"❌ Error: {e}")
+            except Exception:
+                pass
+
+    async def _handle_message(self, message: discord.Message, channel):
+        """Process a user message — create thread or continue session."""
         # Case 1: Message in a THREAD → continue that session
         if isinstance(channel, discord.Thread):
             session_id = self._thread_sessions.get(channel.id)

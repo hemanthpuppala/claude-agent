@@ -24,7 +24,14 @@ async def ws_claude(websocket: WebSocket):
     session = None
     if session_id:
         session = manager.get(session_id)
-        if not session:
+        if session:
+            # Refresh messages from DB (may have been updated by Discord bot or another process)
+            from app.database.queries.messages import get_messages as db_get_messages
+            db_msgs = await db_get_messages(websocket.app.state.db, session_id)
+            if len(db_msgs) > len(session.message_log):
+                session.message_log = [json.loads(m["data"]) for m in db_msgs]
+                session.message_seq = len(db_msgs)
+        else:
             try:
                 session = await manager.restore(session_id)
             except ValueError:
