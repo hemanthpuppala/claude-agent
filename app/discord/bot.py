@@ -211,6 +211,8 @@ class ClaudeCodeBot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.guilds = True
+        intents.members = False
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
         self._channel_projects: dict[int, str] = {}  # channel_id → project_path
@@ -401,11 +403,12 @@ class ClaudeCodeBot(discord.Client):
             result = api_post("/api/sessions", {"cwd": project_path})
             session_id = result.get("session_id")
 
-            # Create thread
+            # Create thread and join it (required to receive messages in threads)
             thread = await channel.create_thread(
                 name=truncate(message.content, 95),
                 type=discord.ChannelType.public_thread,
             )
+            await thread.join()
             self._thread_sessions[thread.id] = session_id
             print(f"[DISCORD] Thread '{message.content[:30]}' → session {session_id[:8]}")
 
@@ -520,6 +523,14 @@ class ClaudeCodeBot(discord.Client):
     async def on_ready(self):
         print(f"[DISCORD] Logged in as {self.user}")
         await self._discover_channels()
+        # Join all existing threads so we receive messages in them
+        for guild in self.guilds:
+            for thread in guild.threads:
+                if not thread.me:
+                    try:
+                        await thread.join()
+                    except Exception:
+                        pass
 
 
 def run_bot():
