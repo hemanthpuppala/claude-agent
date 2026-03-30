@@ -3,6 +3,13 @@ import type {
   SessionConfig, SessionStatus, ServerMessage,
 } from "@/lib/types";
 
+interface RateLimitInfo {
+  utilization: number;    // 0-1 (e.g. 0.97 = 97%)
+  resetsAt: number;       // Unix timestamp
+  type: string;           // "five_hour"
+  status: string;         // "allowed", "allowed_warning"
+}
+
 interface SessionState {
   sessionId: string | null;
   sdkSessionId: string | null;
@@ -13,6 +20,7 @@ interface SessionState {
   totalTurns: number;
   messages: ServerMessage[];
   streamingText: string;
+  rateLimit: RateLimitInfo | null;
   replaying: boolean;
 }
 
@@ -47,6 +55,9 @@ interface SessionStore {
 
   /** Set replaying state */
   setReplaying: (id: string, val: boolean) => void;
+
+  /** Update rate limit info */
+  setRateLimit: (id: string, info: RateLimitInfo) => void;
 
   /** Clear messages (for reconnect) */
   clearMessages: (id: string) => void;
@@ -86,6 +97,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
       // Keep existing messages on reconnect — replay will update them via seq dedup
       messages: existing?.messages ?? [],
       streamingText: "",
+      rateLimit: existing?.rateLimit ?? null,
       replaying: false,
     });
     set({ sessions });
@@ -162,6 +174,14 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     } else {
       sessions.set(id, { ...state, replaying: false });
     }
+    set({ sessions });
+  },
+
+  setRateLimit: (id, info) => {
+    const sessions = new Map(get().sessions);
+    const state = sessions.get(id);
+    if (!state) return;
+    sessions.set(id, { ...state, rateLimit: info });
     set({ sessions });
   },
 

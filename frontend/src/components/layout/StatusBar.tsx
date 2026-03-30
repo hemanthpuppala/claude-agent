@@ -6,6 +6,18 @@ import { useClaudeWebSocket } from "@/hooks/useWebSocket";
 import { formatCost } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
 
+function formatResetTime(timestamp: number): string {
+  const d = new Date(timestamp * 1000);
+  const now = new Date();
+  const diffMs = d.getTime() - now.getTime();
+  if (diffMs < 0) return "now";
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h${diffMin % 60}m`;
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 const PERMISSION_MODES = [
   {
     value: "acceptEdits",
@@ -139,6 +151,42 @@ export function StatusBar() {
       <span style={{ color: "var(--color-text-tertiary)" }}>
         {session.totalTurns} turns
       </span>
+
+      {/* Rate limit / usage */}
+      {session.rateLimit && (
+        <span style={{
+          display: "flex", alignItems: "center", gap: 4,
+          color: session.rateLimit.utilization > 0.9
+            ? "var(--color-warning)"
+            : session.rateLimit.utilization > 0.7
+              ? "var(--color-text-secondary)"
+              : "var(--color-text-tertiary)",
+        }}>
+          {/* Mini progress bar */}
+          <span style={{
+            width: 40, height: 4, borderRadius: 2,
+            background: "var(--color-bg-surface)",
+            overflow: "hidden",
+          }}>
+            <span style={{
+              display: "block", height: "100%", borderRadius: 2,
+              width: `${Math.min(session.rateLimit.utilization * 100, 100)}%`,
+              background: session.rateLimit.utilization > 0.9
+                ? "var(--color-warning)"
+                : session.rateLimit.utilization > 0.7
+                  ? "var(--color-accent)"
+                  : "var(--color-success)",
+              transition: "width 0.3s ease",
+            }} />
+          </span>
+          <span>{Math.round(session.rateLimit.utilization * 100)}%</span>
+          {!isMobile && session.rateLimit.resetsAt > 0 && (
+            <span style={{ color: "var(--color-text-tertiary)", fontSize: 10 }}>
+              resets {formatResetTime(session.rateLimit.resetsAt)}
+            </span>
+          )}
+        </span>
+      )}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />

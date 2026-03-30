@@ -61,8 +61,31 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
       if (cleanedUpRef.current) return;
       const store = getStore();
 
-      let data: ServerMessage;
-      try { data = JSON.parse(event.data); } catch { return; }
+      let raw: Record<string, unknown>;
+      try { raw = JSON.parse(event.data); } catch { return; }
+
+      // Handle rate_limit separately (not in ServerMessage type union)
+      if (raw.type === "rate_limit") {
+        const key = getKey();
+        if (key) {
+          const infoStr = String(raw.info || "");
+          const utilMatch = infoStr.match(/utilization=([\d.]+)/);
+          const resetsMatch = infoStr.match(/resets_at=(\d+)/);
+          const typeMatch = infoStr.match(/rate_limit_type='([^']+)'/);
+          const statusMatch = infoStr.match(/status='([^']+)'/);
+          if (utilMatch) {
+            store.setRateLimit(key, {
+              utilization: parseFloat(utilMatch[1]),
+              resetsAt: resetsMatch ? parseInt(resetsMatch[1]) : 0,
+              type: typeMatch ? typeMatch[1] : "unknown",
+              status: statusMatch ? statusMatch[1] : "unknown",
+            });
+          }
+        }
+        return;
+      }
+
+      const data = raw as unknown as ServerMessage;
 
       switch (data.type) {
         case "session_info": {
@@ -107,6 +130,7 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
         case "error": {
           const key = getKey();
           if (key) store.addMessage(key, data);
+
           break;
         }
       }
