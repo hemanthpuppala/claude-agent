@@ -27,13 +27,15 @@ interface Attachment {
   file?: File;         // File object for local uploads
 }
 
-export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd, onClientCommand }: {
+export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd, onClientCommand, externalAttachments, onExternalAttachmentsConsumed }: {
   onSend: (prompt: string) => void;
   onInterrupt: () => void;
   isRunning: boolean;
   disabled?: boolean;
   cwd?: string;
   onClientCommand?: (message: string) => void;
+  externalAttachments?: { type: string; name: string; path?: string }[];
+  onExternalAttachmentsConsumed?: () => void;
 }) {
   const [value, setValue] = useState("");
   const [showCommands, setShowCommands] = useState(false);
@@ -42,6 +44,28 @@ export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd, onCli
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isMobile } = useMobile();
+
+  // Consume externally dropped files (from ChatView drop zone)
+  const prevExternal = useRef<number>(0);
+  if (externalAttachments && externalAttachments.length > prevExternal.current) {
+    const newOnes = externalAttachments.slice(prevExternal.current);
+    for (const ext of newOnes) {
+      const att: Attachment = {
+        type: ext.type as "project-file" | "local-file",
+        name: ext.name,
+        path: ext.path,
+      };
+      if (!attachments.some(a => a.name === att.name && a.path === att.path)) {
+        attachments.push(att); // Direct push OK — will trigger re-render via setAttachments below
+      }
+    }
+    prevExternal.current = externalAttachments.length;
+    if (newOnes.length > 0) {
+      setAttachments([...attachments]);
+      onExternalAttachmentsConsumed?.();
+      textareaRef.current?.focus();
+    }
+  }
 
   const addAttachment = (att: Attachment) => {
     // Prevent duplicates

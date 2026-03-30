@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useMobile } from "@/hooks/useMobile";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useClaudeWebSocket } from "@/hooks/useWebSocket";
@@ -25,10 +25,57 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
   const isRunning = session?.status === "thinking" || session?.status === "waiting_permission";
 
   const addMessage = useSessionStore((s) => s.addMessage);
+  const [dragOverChat, setDragOverChat] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<{ type: string; name: string; path?: string }[]>([]);
+  const dragCountRef = useRef(0);
 
   const handleSend = (prompt: string) => {
     sendQuery(prompt);
   };
+
+  const handleChatDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleChatDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCountRef.current++;
+    setDragOverChat(true);
+  }, []);
+
+  const handleChatDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCountRef.current--;
+    if (dragCountRef.current <= 0) {
+      dragCountRef.current = 0;
+      setDragOverChat(false);
+    }
+  }, []);
+
+  const handleChatDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCountRef.current = 0;
+    setDragOverChat(false);
+
+    // Project file from sidebar
+    const filePath = e.dataTransfer.getData("application/x-file-path");
+    if (filePath) {
+      const fullPath = (session?.cwd || cwd || "") + "/" + filePath;
+      const name = filePath.split("/").pop() || filePath;
+      setDroppedFiles(prev => [...prev, { type: "project-file", name, path: fullPath }]);
+      return;
+    }
+
+    // Local files from desktop
+    if (e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files).map(f => ({
+        type: "local-file", name: f.name,
+      }));
+      setDroppedFiles(prev => [...prev, ...files]);
+    }
+  }, [session?.cwd, cwd]);
 
   const handleClientCommand = (message: string) => {
     if (sessionId) {
@@ -37,7 +84,37 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
   };
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--color-bg)" }}>
+    <div
+      style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--color-bg)", position: "relative" }}
+      onDragOver={handleChatDragOver}
+      onDragEnter={handleChatDragEnter}
+      onDragLeave={handleChatDragLeave}
+      onDrop={handleChatDrop}
+    >
+      {/* Full-screen drop overlay */}
+      {dragOverChat && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 50,
+          background: "rgba(212,132,90,0.08)",
+          border: "3px dashed var(--color-accent)",
+          borderRadius: 12, margin: 8,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            padding: "16px 32px", borderRadius: 12,
+            background: "var(--color-bg-elevated)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+            border: "1px solid var(--color-accent)",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>📎</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)" }}>Drop to attach</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>Files will be attached to your message</div>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 0" }}>
         <div style={{ maxWidth: 768, margin: "0 auto", padding: isMobile ? "0 12px" : "0 24px" }}>
@@ -82,6 +159,8 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
         disabled={!isConnected}
         cwd={session?.cwd || cwd}
         onClientCommand={handleClientCommand}
+        externalAttachments={droppedFiles}
+        onExternalAttachmentsConsumed={() => setDroppedFiles([])}
       />
     </div>
   );
