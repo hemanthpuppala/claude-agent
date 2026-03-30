@@ -17,9 +17,21 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
   const bottomRef = useRef<HTMLDivElement>(null);
   const { isMobile } = useMobile();
 
+  const isReplaying = session?.replaying ?? false;
+  const prevMsgCount = useRef(0);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [session?.messages.length]);
+    if (isReplaying) return; // Don't scroll during replay — wait until it's done
+
+    const count = session?.messages.length ?? 0;
+    if (count > prevMsgCount.current) {
+      // New message arrived — scroll to bottom
+      // Use instant scroll on first load, smooth on new messages
+      const behavior = prevMsgCount.current === 0 ? "instant" : "smooth";
+      bottomRef.current?.scrollIntoView({ behavior: behavior as ScrollBehavior });
+    }
+    prevMsgCount.current = count;
+  }, [session?.messages.length, isReplaying]);
 
   const isConnected = !!session;
   const messages = session?.messages || [];
