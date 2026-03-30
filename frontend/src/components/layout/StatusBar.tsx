@@ -6,6 +6,10 @@ import { useClaudeWebSocket } from "@/hooks/useWebSocket";
 import { formatCost } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
 
+function Sep() {
+  return <span style={{ width: 1, height: 12, background: "rgba(255,255,255,0.08)", flexShrink: 0 }} />;
+}
+
 function formatResetTime(timestamp: number): string {
   const d = new Date(timestamp * 1000);
   const now = new Date();
@@ -128,23 +132,33 @@ export function StatusBar() {
         <span style={{ color: "var(--color-text-secondary)" }}>{statusLabel}</span>
       </span>
 
+      <Sep />
+
       {/* Cost */}
       <span style={{ color: "var(--color-success)" }}>{formatCost(session.totalCost)}</span>
 
+      <Sep />
+
       {/* Model */}
       {!isMobile && (
-        <span style={{ color: "var(--color-text-tertiary)" }}>
-          {session.config.model
-            ? session.config.model.replace("claude-", "").replace(/-/g, " ")
-            : "opus 4.6"}
-        </span>
+        <>
+          <span style={{ color: "var(--color-text-tertiary)" }}>
+            {session.config.model
+              ? session.config.model.replace("claude-", "").replace(/-/g, " ")
+              : "opus 4.6"}
+          </span>
+          <Sep />
+        </>
       )}
 
       {/* Project */}
       {!isMobile && (
-        <span style={{ color: "var(--color-text-tertiary)" }}>
-          {session.cwd.split("/").pop()}
-        </span>
+        <>
+          <span style={{ color: "var(--color-text-tertiary)" }}>
+            {session.cwd.split("/").pop()}
+          </span>
+          <Sep />
+        </>
       )}
 
       {/* Turns */}
@@ -152,40 +166,42 @@ export function StatusBar() {
         {session.totalTurns} turns
       </span>
 
-      {/* Rate limit / usage */}
+      {/* Session usage */}
       {session.rateLimit && (
-        <span style={{
-          display: "flex", alignItems: "center", gap: 4,
-          color: session.rateLimit.utilization > 0.9
-            ? "var(--color-warning)"
-            : session.rateLimit.utilization > 0.7
-              ? "var(--color-text-secondary)"
-              : "var(--color-text-tertiary)",
-        }}>
-          {/* Mini progress bar */}
+        <>
+          <Sep />
           <span style={{
-            width: 40, height: 4, borderRadius: 2,
-            background: "var(--color-bg-surface)",
-            overflow: "hidden",
+            display: "flex", alignItems: "center", gap: 4,
+            color: session.rateLimit.utilization > 0.9
+              ? "var(--color-warning)"
+              : session.rateLimit.utilization > 0.7
+                ? "var(--color-text-secondary)"
+                : "var(--color-text-tertiary)",
           }}>
             <span style={{
-              display: "block", height: "100%", borderRadius: 2,
-              width: `${Math.min(session.rateLimit.utilization * 100, 100)}%`,
-              background: session.rateLimit.utilization > 0.9
-                ? "var(--color-warning)"
-                : session.rateLimit.utilization > 0.7
-                  ? "var(--color-accent)"
-                  : "var(--color-success)",
-              transition: "width 0.3s ease",
-            }} />
-          </span>
-          <span>{Math.round(session.rateLimit.utilization * 100)}%</span>
-          {!isMobile && session.rateLimit.resetsAt > 0 && (
-            <span style={{ color: "var(--color-text-tertiary)", fontSize: 10 }}>
-              resets {formatResetTime(session.rateLimit.resetsAt)}
+              width: 36, height: 4, borderRadius: 2,
+              background: "var(--color-bg-surface)",
+              overflow: "hidden",
+            }}>
+              <span style={{
+                display: "block", height: "100%", borderRadius: 2,
+                width: `${Math.min(session.rateLimit.utilization * 100, 100)}%`,
+                background: session.rateLimit.utilization > 0.9
+                  ? "var(--color-warning)"
+                  : session.rateLimit.utilization > 0.7
+                    ? "var(--color-accent)"
+                    : "var(--color-success)",
+                transition: "width 0.3s ease",
+              }} />
             </span>
-          )}
-        </span>
+            <span>{Math.round(session.rateLimit.utilization * 100)}%</span>
+            {!isMobile && session.rateLimit.resetsAt > 0 && (
+              <span style={{ color: "var(--color-text-tertiary)", fontSize: 10 }}>
+                resets {formatResetTime(session.rateLimit.resetsAt)}
+              </span>
+            )}
+          </span>
+        </>
       )}
 
       {/* Spacer */}
