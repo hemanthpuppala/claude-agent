@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Plus, FolderOpen, Star, Zap, Terminal, Check } from "lucide-react";
 import { projects as projectsApi, sessions as sessionsApi } from "@/lib/api";
 import { useOpenTab } from "@/hooks/useOpenTab";
@@ -11,6 +11,9 @@ export function SidebarProjects() {
   const [discovered, setDiscovered] = useState<{ name: string; path: string }[]>([]);
   const { openSession, openTerminal } = useOpenTab();
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const [addingPath, setAddingPath] = useState(false);
+  const [newPath, setNewPath] = useState("");
+  const pathInputRef = useRef<HTMLInputElement>(null);
   const activeProject = activeTab?.project || activeTab?.cwd || activeTab?.projectPath || "";
 
   useEffect(() => {
@@ -142,20 +145,91 @@ export function SidebarProjects() {
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer — Add project path */}
       <div style={{ padding: `${spacing.md}px ${spacing.lg}px`, flexShrink: 0, borderTop: `1px solid ${colors.borderSubtle}` }}>
-        <button
-          style={{
-            display: "flex", alignItems: "center", gap: spacing.sm, width: "100%",
-            padding: `${spacing.sm}px 0`, border: "none", background: "transparent",
-            cursor: "pointer", fontSize: 13, color: colors.textSecondary, transition: "color 0.15s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = colors.text; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = colors.textSecondary; }}
-        >
-          <Plus size={14} />
-          Add project path
-        </button>
+        {addingPath ? (
+          <div>
+            <input
+              ref={pathInputRef}
+              autoFocus
+              value={newPath}
+              onChange={(e) => setNewPath(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === "Enter" && newPath.trim()) {
+                  try {
+                    await projectsApi.save(newPath.trim());
+                    setNewPath("");
+                    setAddingPath(false);
+                    // Refresh lists
+                    projectsApi.list().then((data) => setSaved(data as unknown as Project[]));
+                    projectsApi.discover().then(setDiscovered);
+                  } catch (err) {
+                    alert("Invalid path or directory not found");
+                  }
+                }
+                if (e.key === "Escape") {
+                  setNewPath("");
+                  setAddingPath(false);
+                }
+              }}
+              placeholder="/home/user/my-project"
+              style={{
+                width: "100%", padding: "8px 10px", borderRadius: 8,
+                border: `1px solid ${colors.accent}`,
+                background: colors.bg, color: colors.text,
+                fontSize: 12, fontFamily: "var(--font-mono)",
+                outline: "none", marginBottom: 6,
+              }}
+            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={async () => {
+                  if (!newPath.trim()) return;
+                  try {
+                    await projectsApi.save(newPath.trim());
+                    setNewPath("");
+                    setAddingPath(false);
+                    projectsApi.list().then((data) => setSaved(data as unknown as Project[]));
+                    projectsApi.discover().then(setDiscovered);
+                  } catch {
+                    alert("Invalid path or directory not found");
+                  }
+                }}
+                style={{
+                  padding: "5px 12px", borderRadius: 6, border: "none",
+                  background: colors.accent, color: "#fff",
+                  fontSize: 11, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Add
+              </button>
+              <button
+                onClick={() => { setNewPath(""); setAddingPath(false); }}
+                style={{
+                  padding: "5px 12px", borderRadius: 6, border: "none",
+                  background: "transparent", color: colors.textTertiary,
+                  fontSize: 11, cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setAddingPath(true); setTimeout(() => pathInputRef.current?.focus(), 50); }}
+            style={{
+              display: "flex", alignItems: "center", gap: spacing.sm, width: "100%",
+              padding: `${spacing.sm}px 0`, border: "none", background: "transparent",
+              cursor: "pointer", fontSize: 13, color: colors.textSecondary, transition: "color 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = colors.text; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = colors.textSecondary; }}
+          >
+            <Plus size={14} />
+            Add project path
+          </button>
+        )}
       </div>
     </div>
   );
