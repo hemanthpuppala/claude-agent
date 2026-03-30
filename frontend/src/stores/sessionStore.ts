@@ -74,6 +74,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
 
   initSession: (id, info) => {
     const sessions = new Map(get().sessions);
+    const existing = sessions.get(id);
     sessions.set(id, {
       sessionId: id,
       sdkSessionId: info.sdk_session_id ?? null,
@@ -82,7 +83,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
       config: info.config ?? defaultConfig,
       totalCost: info.total_cost ?? 0,
       totalTurns: info.total_turns ?? 0,
-      messages: [],
+      // Keep existing messages on reconnect — replay will update them via seq dedup
+      messages: existing?.messages ?? [],
       streamingText: "",
       replaying: false,
     });
@@ -154,7 +156,12 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     const sessions = new Map(get().sessions);
     const state = sessions.get(id);
     if (!state) return;
-    sessions.set(id, { ...state, replaying: val });
+    // When replay starts, clear messages — server will send the full set
+    if (val) {
+      sessions.set(id, { ...state, replaying: true, messages: [] });
+    } else {
+      sessions.set(id, { ...state, replaying: false });
+    }
     set({ sessions });
   },
 
