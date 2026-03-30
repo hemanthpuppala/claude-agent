@@ -7,6 +7,7 @@ import { MessageUser } from "./MessageUser";
 import { MessageClaude } from "./MessageClaude";
 import { ResultBar } from "./ResultBar";
 import { PermissionCard } from "./PermissionCard";
+import { TypingIndicator } from "./TypingIndicator";
 import { Zap, Loader2 } from "lucide-react";
 import type { ServerMessage, AssistantMsg, ResultMsg, UserEchoMsg, PermissionRequestMsg } from "@/lib/types";
 
@@ -146,6 +147,9 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
           {messages.map((msg, i) => (
             <MessageRenderer key={i} message={msg} onPermission={sendPermission} sessionId={sessionId} />
           ))}
+
+          {/* Typing indicator */}
+          {isRunning && <TypingIndicator status={session?.status || "thinking"} />}
 
           <div ref={bottomRef} />
         </div>
