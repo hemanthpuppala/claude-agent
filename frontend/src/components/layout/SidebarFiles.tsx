@@ -134,6 +134,17 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
         </div>
       </div>
 
+      {/* Git Changes section */}
+      {gitStatus && Object.keys(gitStatus.files).filter(f => gitStatus.files[f] !== "ignored").length > 0 && (
+        <GitChangesSection
+          files={gitStatus.files}
+          onFileClick={(path) => {
+            const name = path.split("/").pop() || path;
+            openFileTab(projectPath, path, name);
+          }}
+        />
+      )}
+
       {/* Tree */}
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
         {loading && (
@@ -314,6 +325,82 @@ function TreeNode({ node, depth, onFileClick, gitFiles }: {
         </span>
       )}
     </button>
+  );
+}
+
+function GitChangesSection({ files, onFileClick }: {
+  files: Record<string, string>;
+  onFileClick: (path: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const changedFiles = Object.entries(files).filter(([, s]) => s !== "ignored");
+
+  if (changedFiles.length === 0) return null;
+
+  return (
+    <div style={{ flexShrink: 0, borderBottom: "1px solid var(--color-border-subtle)" }}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          display: "flex", alignItems: "center", gap: 6, width: "100%",
+          padding: "6px 12px", border: "none", background: "transparent",
+          cursor: "pointer", textAlign: "left",
+        }}
+      >
+        <ChevronRight
+          size={12} color="var(--color-text-tertiary)"
+          style={{ transition: "transform 0.15s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)", flexShrink: 0 }}
+        />
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-tertiary)", flex: 1 }}>
+          Changes
+        </span>
+        <span style={{
+          fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 99,
+          background: "var(--color-bg-surface)", color: "var(--color-text-secondary)",
+        }}>
+          {changedFiles.length}
+        </span>
+      </button>
+
+      {expanded && (
+        <div style={{ paddingBottom: 4 }}>
+          {changedFiles.map(([path, status]) => {
+            const name = path.split("/").pop() || path;
+            const dir = path.includes("/") ? path.substring(0, path.lastIndexOf("/")) : "";
+            const color = GIT_STATUS_COLORS[status] || "var(--color-text-secondary)";
+            const letter = GIT_STATUS_LETTERS[status] || "";
+
+            return (
+              <button
+                key={path}
+                onClick={() => onFileClick(path)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, width: "100%",
+                  padding: "4px 12px 4px 28px",
+                  border: "none", background: "transparent", cursor: "pointer",
+                  textAlign: "left", fontSize: 12, transition: "background 0.1s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{ color, fontWeight: 500, flexShrink: 0 }}>{name}</span>
+                {dir && (
+                  <span style={{ color: "var(--color-text-tertiary)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                    {dir}
+                  </span>
+                )}
+                <span style={{
+                  fontSize: 10, fontWeight: 700, fontFamily: "var(--font-mono)",
+                  color, flexShrink: 0,
+                }}>
+                  {letter}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
