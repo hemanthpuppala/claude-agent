@@ -2,7 +2,6 @@
 
 > Persistent, mobile-first Claude Code terminal. Start a task on your laptop, check progress on your phone. Never waste your 5-hour rate limit again.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![React 19+](https://img.shields.io/badge/react-19%2B-blue)](https://react.dev)
 
@@ -414,7 +413,7 @@ For multi-user setup, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for Postgre
 ## FAQ
 
 **Q: Is it free?**
-A: The tool is open-source. You pay for Claude API usage (same as any client).
+A: You pay only for Claude API usage (same as any client).
 
 **Q: Can I self-host?**
 A: Yes. Run `uv run server.py` on any machine with Python 3.12+.
@@ -439,10 +438,6 @@ curl http://localhost:9282/api/sessions/{id}/messages > chat.json
 
 ---
 
-## License
-
-MIT License — see [LICENSE](LICENSE)
-
 ---
 
 ## Support
@@ -461,5 +456,3 @@ MIT License — see [LICENSE](LICENSE)
 - [SQLite](https://sqlite.org)
 
 ---
-
-**Made with ❤️ for developers who want to maximize Claude.**
