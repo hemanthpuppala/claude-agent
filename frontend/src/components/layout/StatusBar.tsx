@@ -15,25 +15,40 @@ function UsagePill({ label, info, isMobile }: {
   info: { utilization: number; resetsAt: number; status: string };
   isMobile: boolean;
 }) {
-  const pct = Math.round(info.utilization * 100);
-  const color = pct > 90 ? "var(--color-warning)"
+  const hasData = info.utilization >= 0;
+  const pct = hasData ? Math.round(info.utilization * 100) : 0;
+  const color = !hasData ? "var(--color-text-tertiary)"
+    : pct > 90 ? "var(--color-warning)"
     : pct > 70 ? "var(--color-accent)"
     : "var(--color-success)";
+
+  // Show status-based info when no utilization data
+  const statusColor = info.status === "allowed" ? "var(--color-success)"
+    : info.status === "allowed_warning" ? "var(--color-warning)"
+    : "var(--color-text-tertiary)";
 
   return (
     <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
       <span style={{ color: "var(--color-text-tertiary)", fontSize: 10 }}>{label}</span>
-      <span style={{
-        width: 28, height: 4, borderRadius: 2,
-        background: "var(--color-bg-surface)", overflow: "hidden",
-      }}>
-        <span style={{
-          display: "block", height: "100%", borderRadius: 2,
-          width: `${Math.min(pct, 100)}%`, background: color,
-          transition: "width 0.3s ease",
-        }} />
-      </span>
-      <span style={{ color, fontWeight: pct > 90 ? 600 : 400 }}>{pct}%</span>
+      {hasData ? (
+        <>
+          <span style={{
+            width: 28, height: 4, borderRadius: 2,
+            background: "var(--color-bg-surface)", overflow: "hidden",
+          }}>
+            <span style={{
+              display: "block", height: "100%", borderRadius: 2,
+              width: `${Math.min(pct, 100)}%`, background: color,
+              transition: "width 0.3s ease",
+            }} />
+          </span>
+          <span style={{ color, fontWeight: pct > 90 ? 600 : 400 }}>{pct}%</span>
+        </>
+      ) : (
+        <span style={{ color: statusColor, fontSize: 10 }}>
+          {info.status === "allowed" ? "ok" : info.status === "allowed_warning" ? "⚠" : "—"}
+        </span>
+      )}
       {!isMobile && info.resetsAt > 0 && (
         <span style={{ color: "var(--color-text-tertiary)", fontSize: 9 }}>
           {formatResetTime(info.resetsAt)}

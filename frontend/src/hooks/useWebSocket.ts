@@ -69,15 +69,17 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
         const key = getKey();
         if (key) {
           const infoStr = String(raw.info || "");
-          const utilMatch = infoStr.match(/utilization=([\d.]+)/);
+          const utilMatch = infoStr.match(/utilization=([\d.]+|None)/);
           const resetsMatch = infoStr.match(/resets_at=(\d+)/);
           const typeMatch = infoStr.match(/rate_limit_type='([^']+)'/);
           const statusMatch = infoStr.match(/status='([^']+)'/);
-          if (utilMatch) {
+          const type = typeMatch ? typeMatch[1] : "unknown";
+          if (type !== "unknown") {
+            const util = utilMatch && utilMatch[1] !== "None" ? parseFloat(utilMatch[1]) : -1;
             store.setRateLimit(key, {
-              utilization: parseFloat(utilMatch[1]),
+              utilization: util >= 0 ? util : -1,  // -1 means "no data"
               resetsAt: resetsMatch ? parseInt(resetsMatch[1]) : 0,
-              type: typeMatch ? typeMatch[1] : "unknown",
+              type,
               status: statusMatch ? statusMatch[1] : "unknown",
             });
           }
