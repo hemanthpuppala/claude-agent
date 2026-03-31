@@ -140,6 +140,91 @@ async def api_git_status(path: str):
         return {"is_git": True, "branch": None, "files": {}, "error": str(e)}
 
 
+@router.get("/api/projects/git-diff")
+async def api_git_diff(path: str, file: str):
+    """Get git diff for a specific file."""
+    path = os.path.abspath(path)
+    if not os.path.isdir(path):
+        raise HTTPException(400, f"Directory not found: {path}")
+
+    try:
+        # Check if file is untracked (new file — show full content as added)
+        status_result = subprocess.run(
+            ["git", "-C", path, "status", "--porcelain", "--", file],
+            capture_output=True, text=True, timeout=5,
+        )
+        status_line = status_result.stdout.strip()
+        is_untracked = status_line.startswith("??")
+
+        if is_untracked:
+            # Untracked file — show entire content as added
+            full_path = os.path.join(path, file)
+            if os.path.isfile(full_path):
+                try:
+                    content = open(full_path, "r", errors="replace").read()
+                    lines = [{"type": "add", "content": line} for line in content.split("\n")]
+                    return {"file": file, "is_new": True, "hunks": [{"lines": lines}], "raw": ""}
+                except Exception:
+                    pass
+            return {"file": file, "is_new": True, "hunks": [], "raw": ""}
+
+        # Tracked file — get diff (staged + unstaged)
+        diff_result = subprocess.run(
+            ["git", "-C", path, "diff", "HEAD", "--", file],
+            capture_output=True, text=True, timeout=10,
+        )
+        raw_diff = diff_result.stdout
+
+        if not raw_diff:
+            # Try staged-only diff
+            diff_result = subprocess.run(
+                ["git", "-C", path, "diff", "--cached", "--", file],
+                capture_output=True, text=True, timeout=10,
+            )
+            raw_diff = diff_result.stdout
+
+        if not raw_diff:
+            return {"file": file, "is_new": False, "hunks": [], "raw": ""}
+
+        # Parse diff into hunks
+        hunks = _parse_diff(raw_diff)
+        return {"file": file, "is_new": False, "hunks": hunks, "raw": raw_diff}
+
+    except subprocess.TimeoutExpired:
+        return {"file": file, "error": "timeout", "hunks": [], "raw": ""}
+    except Exception as e:
+        return {"file": file, "error": str(e), "hunks": [], "raw": ""}
+
+
+def _parse_diff(raw: str) -> list[dict]:
+    """Parse unified diff into structured hunks with typed lines."""
+    hunks = []
+    current_hunk = None
+
+    for line in raw.split("\n"):
+        if line.startswith("@@"):
+            # New hunk header — parse line numbers
+            if current_hunk:
+                hunks.append(current_hunk)
+            current_hunk = {"header": line, "lines": []}
+        elif current_hunk is not None:
+            if line.startswith("+"):
+                current_hunk["lines"].append({"type": "add", "content": line[1:]})
+            elif line.startswith("-"):
+                current_hunk["lines"].append({"type": "del", "content": line[1:]})
+            elif line.startswith(" "):
+                current_hunk["lines"].append({"type": "ctx", "content": line[1:]})
+            elif line.startswith("\\"):
+                continue  # "\ No newline at end of file"
+            else:
+                current_hunk["lines"].append({"type": "ctx", "content": line})
+
+    if current_hunk:
+        hunks.append(current_hunk)
+
+    return hunks
+
+
 @router.post("/api/projects/file")
 async def api_read_file(body: ReadFileRequest):
     project = os.path.abspath(body.project_path)

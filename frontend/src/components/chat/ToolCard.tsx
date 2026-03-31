@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronRight, FileText, Search, FileSearch, Pencil, FilePlus, Terminal, Globe, ExternalLink, Bot, Wrench, HelpCircle, AlertTriangle } from "lucide-react";
 import { TOOL_CATEGORIES, DEFAULT_TOOL, isDangerousCommand } from "@/lib/constants";
 import { truncate, basename } from "@/lib/utils";
+import { DiffViewer } from "@/components/ui/DiffViewer";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ICONS: Record<string, any> = {
@@ -190,38 +191,16 @@ function ToolBody({ toolName, toolInput }: { toolName: string; toolInput: Record
       const filePath = String(toolInput.file_path || "");
       const oldStr = String(toolInput.old_string || "");
       const newStr = String(toolInput.new_string || "");
+      // Convert Edit tool input into DiffViewer hunks
+      const editLines: { type: "add" | "del"; content: string }[] = [];
+      if (oldStr) oldStr.split("\n").forEach(line => editLines.push({ type: "del", content: line }));
+      if (newStr) newStr.split("\n").forEach(line => editLines.push({ type: "add", content: line }));
       return (
-        <div>
-          <div style={{
-            fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--color-text-tertiary)",
-            marginBottom: 8, padding: "4px 8px", borderRadius: 4,
-            background: "var(--color-bg-surface)", display: "inline-block",
-          }}>
-            {filePath}
-          </div>
-          <div style={{ borderRadius: 6, overflow: "hidden", border: "1px solid var(--color-border-subtle)" }}>
-            {oldStr && oldStr.split("\n").map((line, i) => (
-              <div key={`old-${i}`} style={{
-                padding: "2px 10px", fontSize: 12, fontFamily: "var(--font-mono)",
-                background: "rgba(239,68,68,0.06)", color: "#fca5a5",
-                borderLeft: "3px solid var(--color-destructive)",
-              }}>
-                <span style={{ color: "var(--color-text-tertiary)", marginRight: 8, userSelect: "none" }}>-</span>
-                {line}
-              </div>
-            ))}
-            {newStr && newStr.split("\n").map((line, i) => (
-              <div key={`new-${i}`} style={{
-                padding: "2px 10px", fontSize: 12, fontFamily: "var(--font-mono)",
-                background: "rgba(16,185,129,0.06)", color: "#86efac",
-                borderLeft: "3px solid var(--color-success)",
-              }}>
-                <span style={{ color: "var(--color-text-tertiary)", marginRight: 8, userSelect: "none" }}>+</span>
-                {line}
-              </div>
-            ))}
-          </div>
-        </div>
+        <DiffViewer
+          hunks={[{ lines: editLines }]}
+          fileName={filePath}
+          maxHeight={300}
+        />
       );
     }
 

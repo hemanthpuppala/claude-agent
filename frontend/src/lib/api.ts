@@ -62,6 +62,14 @@ export const projects = {
     request<{ is_git: boolean; branch: string | null; files: Record<string, string>; summary?: Record<string, number> }>(
       `/api/projects/git-status?path=${encodeURIComponent(path)}`
     ),
+  gitDiff: (path: string, file: string) =>
+    request<{
+      file: string;
+      is_new: boolean;
+      hunks: { header?: string; lines: { type: "add" | "del" | "ctx"; content: string }[] }[];
+      raw: string;
+      error?: string;
+    }>(`/api/projects/git-diff?path=${encodeURIComponent(path)}&file=${encodeURIComponent(file)}`),
 };
 
 /* Terminals */

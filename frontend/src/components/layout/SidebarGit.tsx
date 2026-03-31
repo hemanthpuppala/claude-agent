@@ -1,22 +1,44 @@
 import { useEffect, useState, useCallback } from "react";
-import { GitBranch, RefreshCw } from "lucide-react";
+import { GitBranch, RefreshCw, X } from "lucide-react";
 import { projects } from "@/lib/api";
 import { useTabStore } from "@/stores/tabStore";
 import { useOpenTab } from "@/hooks/useOpenTab";
 import { getWsUrl, basename } from "@/lib/utils";
 import { GIT_STATUS_COLORS, GIT_STATUS_LETTERS } from "@/lib/constants";
+import { DiffViewer } from "@/components/ui/DiffViewer";
 
 export function SidebarGit() {
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const projectPath = activeTab?.project || activeTab?.cwd || activeTab?.projectPath || "";
   const projectName = projectPath ? basename(projectPath) : "";
-  const { openFile } = useOpenTab();
+  const { } = useOpenTab(); // Keep hook for future use
 
   const [gitData, setGitData] = useState<{
     branch: string | null;
     files: Record<string, string>;
     summary?: Record<string, number>;
   } | null>(null);
+
+  const [diffFile, setDiffFile] = useState<string | null>(null);
+  const [diffData, setDiffData] = useState<{
+    hunks: { header?: string; lines: { type: "add" | "del" | "ctx"; content: string }[] }[];
+    is_new: boolean;
+  } | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+
+  const loadDiff = useCallback(async (file: string) => {
+    if (!projectPath) return;
+    setDiffFile(file);
+    setDiffLoading(true);
+    setDiffData(null);
+    try {
+      const data = await projects.gitDiff(projectPath, file);
+      setDiffData({ hunks: data.hunks, is_new: data.is_new });
+    } catch {
+      setDiffData({ hunks: [], is_new: false });
+    }
+    setDiffLoading(false);
+  }, [projectPath]);
 
   const loadGit = useCallback(() => {
     if (!projectPath) return;
@@ -132,7 +154,7 @@ export function SidebarGit() {
               return (
                 <button
                   key={path}
-                  onClick={() => openFile(projectPath, path, name)}
+                  onClick={() => loadDiff(path)}
                   style={{
                     display: "flex", alignItems: "center", gap: 8, width: "100%",
                     padding: "6px 16px", border: "none", background: "transparent",
@@ -170,7 +192,7 @@ export function SidebarGit() {
         )}
 
         {/* Summary */}
-        {gitData?.summary && Object.keys(gitData.summary).length > 0 && (
+        {gitData?.summary && Object.keys(gitData.summary).length > 0 && !diffFile && (
           <div style={{
             padding: "12px 16px", marginTop: 8,
             borderTop: "1px solid var(--color-border-subtle)",
@@ -180,6 +202,48 @@ export function SidebarGit() {
             {gitData.summary.untracked && <span style={{ color: GIT_STATUS_COLORS.untracked }}>{gitData.summary.untracked} untracked</span>}
             {gitData.summary.added && <span style={{ color: GIT_STATUS_COLORS.added }}>{gitData.summary.added} added</span>}
             {gitData.summary.deleted && <span style={{ color: GIT_STATUS_COLORS.deleted }}>{gitData.summary.deleted} deleted</span>}
+          </div>
+        )}
+
+        {/* Inline diff view */}
+        {diffFile && (
+          <div style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 12px",
+              background: "var(--color-bg-surface)",
+              borderBottom: "1px solid var(--color-border-subtle)",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {diffFile.split("/").pop()}
+              </span>
+              <span style={{ fontSize: 10, color: "var(--color-text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {diffFile}
+              </span>
+              <button
+                onClick={() => { setDiffFile(null); setDiffData(null); }}
+                style={{
+                  width: 22, height: 22, borderRadius: 4, border: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "transparent", color: "var(--color-text-tertiary)",
+                  cursor: "pointer", flexShrink: 0,
+                }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            {diffLoading ? (
+              <div style={{ padding: 16, fontSize: 12, color: "var(--color-text-tertiary)", textAlign: "center" }}>
+                Loading diff...
+              </div>
+            ) : diffData ? (
+              <DiffViewer
+                hunks={diffData.hunks}
+                isNew={diffData.is_new}
+                maxHeight={400}
+              />
+            ) : null}
           </div>
         )}
       </div>
