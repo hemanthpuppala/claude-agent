@@ -58,6 +58,10 @@ export const projects = {
       method: "POST",
       body: JSON.stringify({ project_path: projectPath, file_path: filePath }),
     }),
+  gitStatus: (path: string) =>
+    request<{ is_git: boolean; branch: string | null; files: Record<string, string>; summary?: Record<string, number> }>(
+      `/api/projects/git-status?path=${encodeURIComponent(path)}`
+    ),
 };
 
 /* Terminals */

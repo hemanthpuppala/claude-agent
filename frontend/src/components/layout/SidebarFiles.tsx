@@ -1,10 +1,29 @@
 import { useEffect, useState, useCallback } from "react";
-import { ChevronRight, FolderOpen, Folder, FileText, FileCode, FileJson, Image, File, RefreshCw, Terminal, Plus } from "lucide-react";
+import { ChevronRight, FolderOpen, Folder, FileText, FileCode, FileJson, Image, File, RefreshCw, Terminal, Plus, GitBranch } from "lucide-react";
 import { projects, terminals as terminalsApi } from "@/lib/api";
 import { useOpenTab } from "@/hooks/useOpenTab";
 import { TerminalNamePrompt } from "@/components/terminal/TerminalNamePrompt";
 import { getWsUrl, basename } from "@/lib/utils";
 import type { FileNode } from "@/lib/types";
+
+// Git status colors matching VS Code
+const GIT_STATUS_COLORS: Record<string, string> = {
+  modified: "#E2C08D",    // yellow-ish
+  added: "#73C991",       // green
+  untracked: "#73C991",   // green (same as added in VS Code)
+  deleted: "#C74E39",     // red
+  renamed: "#73C991",     // green
+  conflict: "#E51400",    // bright red
+};
+
+const GIT_STATUS_LETTERS: Record<string, string> = {
+  modified: "M",
+  added: "A",
+  untracked: "U",
+  deleted: "D",
+  renamed: "R",
+  conflict: "!",
+};
 
 const EXT_ICONS: Record<string, typeof FileText> = {
   ts: FileCode, tsx: FileCode, js: FileCode, jsx: FileCode,
@@ -18,6 +37,7 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
   const [loading, setLoading] = useState(true);
   const [termSessions, setTermSessions] = useState<{ name: string; created_at: number; cwd: string }[]>([]);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [gitStatus, setGitStatus] = useState<{ branch: string | null; files: Record<string, string>; summary?: Record<string, number> } | null>(null);
   const { openFile: openFileTab, openTerminal: openTerminalTab } = useOpenTab();
 
   const loadTree = useCallback(() => {
@@ -28,6 +48,16 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
     }).catch(() => setLoading(false));
   }, [projectPath]);
 
+  const loadGitStatus = useCallback(() => {
+    projects.gitStatus(projectPath).then((data) => {
+      if (data.is_git) {
+        setGitStatus({ branch: data.branch, files: data.files, summary: data.summary });
+      } else {
+        setGitStatus(null);
+      }
+    }).catch(() => {});
+  }, [projectPath]);
+
   const loadTerminals = useCallback(() => {
     terminalsApi.list().then((all) => {
       setTermSessions(all.filter((t) => t.cwd === projectPath || t.project === basename(projectPath)));
@@ -36,14 +66,15 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
 
   useEffect(() => {
     loadTree();
+    loadGitStatus();
     loadTerminals();
 
     const url = getWsUrl(`/ws/watch?path=${encodeURIComponent(projectPath)}`);
     const ws = new WebSocket(url);
-    ws.onmessage = () => loadTree();
+    ws.onmessage = () => { loadTree(); loadGitStatus(); };
     const termInterval = setInterval(loadTerminals, 5000);
     return () => { ws.close(); clearInterval(termInterval); };
-  }, [projectPath, loadTree, loadTerminals]);
+  }, [projectPath, loadTree, loadGitStatus, loadTerminals]);
 
   const openFile = (node: FileNode) => {
     openFileTab(projectPath, node.path, node.name);
@@ -64,9 +95,25 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
         padding: "0 16px", height: 44, flexShrink: 0,
         borderBottom: "1px solid var(--color-border-subtle)",
       }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {projectName}
-        </span>
+        <div style={{ overflow: "hidden", minWidth: 0 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+            {projectName}
+          </span>
+          {gitStatus?.branch && (
+            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 1 }}>
+              <GitBranch size={10} />
+              {gitStatus.branch}
+              {gitStatus.summary && Object.keys(gitStatus.summary).length > 0 && (
+                <span style={{ marginLeft: 4, display: "flex", gap: 4 }}>
+                  {gitStatus.summary.modified && <span style={{ color: GIT_STATUS_COLORS.modified }}>{gitStatus.summary.modified}M</span>}
+                  {gitStatus.summary.untracked && <span style={{ color: GIT_STATUS_COLORS.untracked }}>{gitStatus.summary.untracked}U</span>}
+                  {gitStatus.summary.added && <span style={{ color: GIT_STATUS_COLORS.added }}>{gitStatus.summary.added}A</span>}
+                  {gitStatus.summary.deleted && <span style={{ color: GIT_STATUS_COLORS.deleted }}>{gitStatus.summary.deleted}D</span>}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
         <div style={{ display: "flex", gap: 4 }}>
           <IconButton title="New terminal" onClick={() => setShowNamePrompt(true)}>
             <Terminal size={14} />
@@ -85,7 +132,7 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
           </div>
         )}
         {!loading && tree.map((node) => (
-          <TreeNode key={node.path} node={node} depth={0} onFileClick={openFile} />
+          <TreeNode key={node.path} node={node} depth={0} onFileClick={openFile} gitFiles={gitStatus?.files || {}} />
         ))}
       </div>
 
@@ -157,8 +204,19 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
   );
 }
 
-function TreeNode({ node, depth, onFileClick }: { node: FileNode; depth: number; onFileClick: (n: FileNode) => void }) {
+function TreeNode({ node, depth, onFileClick, gitFiles }: {
+  node: FileNode; depth: number; onFileClick: (n: FileNode) => void;
+  gitFiles: Record<string, string>;
+}) {
   const [expanded, setExpanded] = useState(depth < 1);
+  const fileStatus = gitFiles[node.path];
+  const statusColor = fileStatus ? GIT_STATUS_COLORS[fileStatus] : undefined;
+  const statusLetter = fileStatus ? GIT_STATUS_LETTERS[fileStatus] : undefined;
+
+  // Check if any children have git changes (for directory indicators)
+  const hasChangedChildren = node.type === "directory" && node.children?.some(
+    (c) => gitFiles[c.path] || (c.type === "directory" && c.children?.some(gc => gitFiles[gc.path]))
+  );
 
   if (node.type === "directory") {
     return (
@@ -183,12 +241,15 @@ function TreeNode({ node, depth, onFileClick }: { node: FileNode; depth: number;
             ? <FolderOpen size={14} color="var(--color-accent)" style={{ flexShrink: 0 }} />
             : <Folder size={14} color="var(--color-text-tertiary)" style={{ flexShrink: 0 }} />
           }
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
             {node.name}
           </span>
+          {hasChangedChildren && (
+            <span style={{ width: 6, height: 6, borderRadius: 99, background: GIT_STATUS_COLORS.modified, flexShrink: 0, opacity: 0.7 }} />
+          )}
         </button>
         {expanded && node.children?.map((child) => (
-          <TreeNode key={child.path} node={child} depth={depth + 1} onFileClick={onFileClick} />
+          <TreeNode key={child.path} node={child} depth={depth + 1} onFileClick={onFileClick} gitFiles={gitFiles} />
         ))}
       </div>
     );
@@ -214,10 +275,22 @@ function TreeNode({ node, depth, onFileClick }: { node: FileNode; depth: number;
       onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
-      <IconComp size={14} color="var(--color-text-tertiary)" style={{ flexShrink: 0 }} />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <IconComp size={14} color={statusColor || "var(--color-text-tertiary)"} style={{ flexShrink: 0 }} />
+      <span style={{
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
+        color: statusColor || "var(--color-text-secondary)",
+      }}>
         {node.name}
       </span>
+      {statusLetter && (
+        <span style={{
+          fontSize: 10, fontWeight: 700, fontFamily: "var(--font-mono)",
+          color: statusColor, flexShrink: 0, marginRight: 4,
+          opacity: 0.9,
+        }}>
+          {statusLetter}
+        </span>
+      )}
     </button>
   );
 }

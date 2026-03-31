@@ -1,6 +1,7 @@
 """Project browser routes — list, save, file tree, file reader."""
 
 import os
+import subprocess
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -66,6 +67,77 @@ async def api_file_tree(path: str, max_depth: int = 6):
     if not os.path.isdir(path):
         raise HTTPException(400, f"Directory not found: {path}")
     return get_file_tree(path, max_depth=max_depth)
+
+
+@router.get("/api/projects/git-status")
+async def api_git_status(path: str):
+    """Get git status for all files in a project directory."""
+    path = os.path.abspath(path)
+    if not os.path.isdir(path):
+        raise HTTPException(400, f"Directory not found: {path}")
+
+    # Check if it's a git repo
+    git_dir = os.path.join(path, ".git")
+    if not os.path.isdir(git_dir):
+        return {"is_git": False, "branch": None, "files": {}}
+
+    try:
+        # Get current branch
+        branch_result = subprocess.run(
+            ["git", "-C", path, "branch", "--show-current"],
+            capture_output=True, text=True, timeout=5,
+        )
+        branch = branch_result.stdout.strip() or None
+
+        # Get file statuses
+        status_result = subprocess.run(
+            ["git", "-C", path, "status", "--porcelain", "-u"],
+            capture_output=True, text=True, timeout=10,
+        )
+
+        files: dict[str, str] = {}
+        for line in status_result.stdout.strip().split("\n"):
+            if not line or len(line) < 4:
+                continue
+            # Format: XY filename (or XY old -> new for renames)
+            xy = line[:2]
+            filepath = line[3:].split(" -> ")[-1]  # Handle renames
+
+            index_status = xy[0]   # Staged status
+            work_status = xy[1]    # Working tree status
+
+            if xy == "??":
+                files[filepath] = "untracked"
+            elif xy == "!!":
+                continue  # Ignored
+            elif index_status == "A" or work_status == "A":
+                files[filepath] = "added"
+            elif index_status == "D" or work_status == "D":
+                files[filepath] = "deleted"
+            elif index_status == "M" or work_status == "M":
+                files[filepath] = "modified"
+            elif index_status == "R":
+                files[filepath] = "renamed"
+            elif "U" in xy:
+                files[filepath] = "conflict"
+            else:
+                files[filepath] = "modified"
+
+        # Count summary
+        summary = {}
+        for status in files.values():
+            summary[status] = summary.get(status, 0) + 1
+
+        return {
+            "is_git": True,
+            "branch": branch,
+            "files": files,
+            "summary": summary,
+        }
+    except subprocess.TimeoutExpired:
+        return {"is_git": True, "branch": None, "files": {}, "error": "timeout"}
+    except Exception as e:
+        return {"is_git": True, "branch": None, "files": {}, "error": str(e)}
 
 
 @router.post("/api/projects/file")
