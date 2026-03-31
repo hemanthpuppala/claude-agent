@@ -6,25 +6,7 @@ import { TerminalNamePrompt } from "@/components/terminal/TerminalNamePrompt";
 import { getWsUrl, basename } from "@/lib/utils";
 import type { FileNode } from "@/lib/types";
 
-// Git status colors matching VS Code
-const GIT_STATUS_COLORS: Record<string, string> = {
-  modified: "#E2C08D",    // yellow-ish
-  added: "#73C991",       // green
-  untracked: "#73C991",   // green
-  deleted: "#C74E39",     // red
-  renamed: "#73C991",     // green
-  conflict: "#E51400",    // bright red
-  ignored: "#6B6B6B",     // gray
-};
-
-const GIT_STATUS_LETTERS: Record<string, string> = {
-  modified: "M",
-  added: "A",
-  untracked: "U",
-  deleted: "D",
-  renamed: "R",
-  conflict: "!",
-};
+import { GIT_STATUS_COLORS, GIT_STATUS_LETTERS } from "@/lib/constants";
 
 /** Check if any descendant of a path has git changes */
 function hasDescendantChanges(dirPath: string, gitFiles: Record<string, string>): string | null {
@@ -105,22 +87,20 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
         padding: "0 16px", height: 44, flexShrink: 0,
         borderBottom: "1px solid var(--color-border-subtle)",
       }}>
-        <div style={{ overflow: "hidden", minWidth: 0 }}>
+        <div style={{ overflow: "hidden", minWidth: 0, flex: 1 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
             {projectName}
           </span>
           {gitStatus?.branch && (
-            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 1 }}>
-              <GitBranch size={10} />
-              {gitStatus.branch}
-              {gitStatus.summary && Object.keys(gitStatus.summary).length > 0 && (
-                <span style={{ marginLeft: 4, display: "flex", gap: 4 }}>
-                  {gitStatus.summary.modified && <span style={{ color: GIT_STATUS_COLORS.modified }}>{gitStatus.summary.modified}M</span>}
-                  {gitStatus.summary.untracked && <span style={{ color: GIT_STATUS_COLORS.untracked }}>{gitStatus.summary.untracked}U</span>}
-                  {gitStatus.summary.added && <span style={{ color: GIT_STATUS_COLORS.added }}>{gitStatus.summary.added}A</span>}
-                  {gitStatus.summary.deleted && <span style={{ color: GIT_STATUS_COLORS.deleted }}>{gitStatus.summary.deleted}D</span>}
-                </span>
-              )}
+            <span style={{
+              display: "flex", alignItems: "center", gap: 3,
+              fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 2,
+              overflow: "hidden",
+            }}>
+              <GitBranch size={9} style={{ flexShrink: 0 }} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {gitStatus.branch}
+              </span>
             </span>
           )}
         </div>
@@ -133,17 +113,6 @@ export function SidebarFiles({ projectPath }: { projectPath: string }) {
           </IconButton>
         </div>
       </div>
-
-      {/* Git Changes section */}
-      {gitStatus && Object.keys(gitStatus.files).filter(f => gitStatus.files[f] !== "ignored").length > 0 && (
-        <GitChangesSection
-          files={gitStatus.files}
-          onFileClick={(path) => {
-            const name = path.split("/").pop() || path;
-            openFileTab(projectPath, path, name);
-          }}
-        />
-      )}
 
       {/* Tree */}
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
@@ -325,82 +294,6 @@ function TreeNode({ node, depth, onFileClick, gitFiles }: {
         </span>
       )}
     </button>
-  );
-}
-
-function GitChangesSection({ files, onFileClick }: {
-  files: Record<string, string>;
-  onFileClick: (path: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const changedFiles = Object.entries(files).filter(([, s]) => s !== "ignored");
-
-  if (changedFiles.length === 0) return null;
-
-  return (
-    <div style={{ flexShrink: 0, borderBottom: "1px solid var(--color-border-subtle)" }}>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        style={{
-          display: "flex", alignItems: "center", gap: 6, width: "100%",
-          padding: "6px 12px", border: "none", background: "transparent",
-          cursor: "pointer", textAlign: "left",
-        }}
-      >
-        <ChevronRight
-          size={12} color="var(--color-text-tertiary)"
-          style={{ transition: "transform 0.15s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)", flexShrink: 0 }}
-        />
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-tertiary)", flex: 1 }}>
-          Changes
-        </span>
-        <span style={{
-          fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 99,
-          background: "var(--color-bg-surface)", color: "var(--color-text-secondary)",
-        }}>
-          {changedFiles.length}
-        </span>
-      </button>
-
-      {expanded && (
-        <div style={{ paddingBottom: 4 }}>
-          {changedFiles.map(([path, status]) => {
-            const name = path.split("/").pop() || path;
-            const dir = path.includes("/") ? path.substring(0, path.lastIndexOf("/")) : "";
-            const color = GIT_STATUS_COLORS[status] || "var(--color-text-secondary)";
-            const letter = GIT_STATUS_LETTERS[status] || "";
-
-            return (
-              <button
-                key={path}
-                onClick={() => onFileClick(path)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 6, width: "100%",
-                  padding: "4px 12px 4px 28px",
-                  border: "none", background: "transparent", cursor: "pointer",
-                  textAlign: "left", fontSize: 12, transition: "background 0.1s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
-                <span style={{ color, fontWeight: 500, flexShrink: 0 }}>{name}</span>
-                {dir && (
-                  <span style={{ color: "var(--color-text-tertiary)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                    {dir}
-                  </span>
-                )}
-                <span style={{
-                  fontSize: 10, fontWeight: 700, fontFamily: "var(--font-mono)",
-                  color, flexShrink: 0,
-                }}>
-                  {letter}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }
 

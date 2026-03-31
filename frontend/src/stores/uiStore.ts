@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type SidebarPanel = "sessions" | "terminals" | "projects" | "files" | "settings";
+type SidebarPanel = "sessions" | "terminals" | "projects" | "files" | "git" | "settings";
 
 interface UIStore {
   sidebarOpen: boolean;

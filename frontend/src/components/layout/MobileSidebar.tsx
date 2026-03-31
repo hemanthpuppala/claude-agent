@@ -1,19 +1,21 @@
 import { useState } from "react";
-import { Zap, Terminal, FolderOpen, Settings, ChevronLeft, ChevronRight, X, Files } from "lucide-react";
+import { Zap, Terminal, FolderOpen, Settings, ChevronLeft, ChevronRight, X, Files, GitBranch } from "lucide-react";
 import { SidebarHome } from "./SidebarHome";
 import { SidebarTerminals } from "./SidebarTerminals";
 import { SidebarProjects } from "./SidebarProjects";
 import { SidebarFiles } from "./SidebarFiles";
+import { SidebarGit } from "./SidebarGit";
 import { SidebarSettings } from "./SidebarSettings";
 import { useTabStore } from "@/stores/tabStore";
 
-type Panel = "menu" | "sessions" | "terminals" | "projects" | "files" | "settings";
+type Panel = "menu" | "sessions" | "terminals" | "projects" | "files" | "git" | "settings";
 
 const MENU_ITEMS: { id: Panel; icon: typeof Zap; label: string; description: string; color: string }[] = [
   { id: "sessions", icon: Zap, label: "Claude Sessions", description: "Active and recent sessions", color: "var(--color-accent)" },
   { id: "terminals", icon: Terminal, label: "Terminals", description: "tmux terminal sessions", color: "var(--color-tool-execute)" },
   { id: "projects", icon: FolderOpen, label: "Projects", description: "Discover and manage projects", color: "var(--color-tool-read)" },
   { id: "files", icon: Files, label: "Workspace Files", description: "Browse current project files", color: "var(--color-tool-write)" },
+  { id: "git", icon: GitBranch, label: "Source Control", description: "Git status, changes, branch info", color: "var(--color-warning)" },
   { id: "settings", icon: Settings, label: "Settings", description: "Permissions, model, notifications", color: "var(--color-text-secondary)" },
 ];
 
@@ -159,6 +161,7 @@ export function MobileSidebar({ onClose }: { onClose: () => void }) {
               }
             </div>
           )}
+          {panel === "git" && <div style={{ height: "100%", overflow: "auto" }}><SidebarGit /></div>}
           {panel === "settings" && <div style={{ height: "100%", overflow: "auto" }}><SidebarSettings /></div>}
         </div>
       </div>

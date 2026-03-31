@@ -1,4 +1,4 @@
-import { Zap, Terminal, FolderOpen, Files, Settings } from "lucide-react";
+import { Zap, Terminal, FolderOpen, Files, GitBranch, Settings } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 
 const items = [
@@ -6,6 +6,7 @@ const items = [
   { id: "terminals" as const, icon: Terminal, label: "Terminals" },
   { id: "projects" as const, icon: FolderOpen, label: "Projects" },
   { id: "files" as const, icon: Files, label: "Workspace Files" },
+  { id: "git" as const, icon: GitBranch, label: "Source Control" },
 ] as const;
 
 export function ActivityBar() {

@@ -50,3 +50,23 @@ export const DANGEROUS_PATTERNS = [
 export function isDangerousCommand(cmd: string): boolean {
   return DANGEROUS_PATTERNS.some((p) => p.test(cmd));
 }
+
+/** Git status colors — shared across SidebarFiles, SidebarGit */
+export const GIT_STATUS_COLORS: Record<string, string> = {
+  modified: "#E2C08D",
+  added: "#73C991",
+  untracked: "#73C991",
+  deleted: "#C74E39",
+  renamed: "#73C991",
+  conflict: "#E51400",
+  ignored: "#6B6B6B",
+};
+
+export const GIT_STATUS_LETTERS: Record<string, string> = {
+  modified: "M",
+  added: "A",
+  untracked: "U",
+  deleted: "D",
+  renamed: "R",
+  conflict: "!",
+};

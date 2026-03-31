@@ -5,6 +5,7 @@ import { SidebarTerminals } from "./SidebarTerminals";
 import { SidebarProjects } from "./SidebarProjects";
 import { SidebarFiles } from "./SidebarFiles";
 import { SidebarSettings } from "./SidebarSettings";
+import { SidebarGit } from "./SidebarGit";
 
 export function Sidebar() {
   const panel = useUIStore((s) => s.sidebarPanel);
@@ -28,6 +29,7 @@ export function Sidebar() {
               Select a session or terminal tab to view its project files.
             </div>
       )}
+      {panel === "git" && <SidebarGit />}
       {panel === "settings" && <SidebarSettings />}
     </div>
   );
