@@ -108,7 +108,7 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
       {dragOverChat && (
         <div style={{
           position: "absolute", inset: 0, zIndex: 50,
-          background: "rgba(212,132,90,0.08)",
+          background: "rgba(249,115,22,0.08)",
           border: "3px dashed var(--color-accent)",
           borderRadius: 12, margin: 8,
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -137,9 +137,9 @@ export function ChatView({ sessionId, cwd }: { sessionId?: string; cwd?: string 
             <div style={{ textAlign: "center", paddingTop: 80 }}>
               <div style={{
                 width: 56, height: 56, borderRadius: 16, margin: "0 auto 20px",
-                background: "linear-gradient(135deg, #d4845a, #b86d47)",
+                background: "var(--gradient-primary)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 8px 32px rgba(212,132,90,0.25)",
+                boxShadow: "0 8px 32px rgba(249,115,22,0.25)",
               }}>
                 {isConnected
                   ? <Zap size={28} color="#fff" />

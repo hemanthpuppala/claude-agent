@@ -33,11 +33,11 @@ export function CheckboxGrid({ items, selected, onChange }: {
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "6px 8px", borderRadius: 6, border: "none",
-            background: isChecked(item) ? "rgba(212,132,90,0.08)" : "transparent",
+            background: isChecked(item) ? "rgba(249,115,22,0.08)" : "transparent",
             cursor: "pointer", transition: "background 0.15s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = isChecked(item) ? "rgba(212,132,90,0.12)" : "var(--color-bg-surface)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = isChecked(item) ? "rgba(212,132,90,0.08)" : "transparent"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = isChecked(item) ? "rgba(249,115,22,0.12)" : "var(--color-bg-surface)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = isChecked(item) ? "rgba(249,115,22,0.08)" : "transparent"; }}
         >
           <span style={{
             width: 16, height: 16, borderRadius: 4, flexShrink: 0,

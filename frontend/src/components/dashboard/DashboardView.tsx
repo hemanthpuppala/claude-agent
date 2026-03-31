@@ -51,9 +51,9 @@ export function DashboardView() {
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
             <div style={{
               width: 44, height: 44, borderRadius: 14,
-              background: "linear-gradient(135deg, #d4845a, #b86d47)",
+              background: "var(--gradient-primary)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 4px 16px rgba(212,132,90,0.3)",
+              boxShadow: "0 4px 16px rgba(249,115,22,0.3)",
             }}>
               <Zap size={22} color="#fff" />
             </div>
@@ -135,9 +135,9 @@ export function DashboardView() {
           <div style={{ textAlign: "center", paddingTop: 80, paddingBottom: 80 }}>
             <div style={{
               width: 64, height: 64, borderRadius: 20, margin: "0 auto 24px",
-              background: "linear-gradient(135deg, #d4845a, #b86d47)",
+              background: "var(--gradient-primary)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 8px 32px rgba(212,132,90,0.3)",
+              boxShadow: "0 8px 32px rgba(249,115,22,0.3)",
             }}>
               <Zap size={32} color="#fff" />
             </div>

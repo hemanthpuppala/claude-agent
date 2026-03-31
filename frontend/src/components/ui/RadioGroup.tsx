@@ -18,7 +18,7 @@ export function RadioGroup({ options, value, onChange }: {
           style={{
             display: "flex", alignItems: "flex-start", gap: 10,
             padding: "8px 10px", borderRadius: 8, border: "none",
-            background: value === opt.value ? "rgba(212,132,90,0.08)" : "transparent",
+            background: value === opt.value ? "rgba(249,115,22,0.08)" : "transparent",
             cursor: "pointer", textAlign: "left",
             transition: "background 0.15s",
           }}

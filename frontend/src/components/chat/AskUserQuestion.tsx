@@ -134,7 +134,7 @@ export function AskUserQuestion({ input, onAnswer }: {
                   : i === currentStep
                     ? "var(--color-accent)"
                     : "var(--color-bg-surface)",
-                boxShadow: i === currentStep ? "0 0 6px rgba(212,132,90,0.4)" : "none",
+                boxShadow: i === currentStep ? "0 0 6px rgba(249,115,22,0.4)" : "none",
                 transition: "all 0.2s",
               }} />
             ))}
@@ -145,7 +145,7 @@ export function AskUserQuestion({ input, onAnswer }: {
         {question.header && (
           <div style={{
             display: "inline-block", padding: "3px 10px", borderRadius: 6,
-            background: "rgba(212,132,90,0.1)", fontSize: 10, fontWeight: 700,
+            background: "rgba(249,115,22,0.1)", fontSize: 10, fontWeight: 700,
             textTransform: "uppercase", letterSpacing: "0.05em",
             color: "var(--color-accent)", marginBottom: 12,
           }}>
@@ -201,7 +201,7 @@ export function AskUserQuestion({ input, onAnswer }: {
                           border: isSelected
                             ? "1px solid var(--color-accent)"
                             : "1px solid var(--color-border)",
-                          background: isSelected ? "rgba(212,132,90,0.06)" : "var(--color-bg)",
+                          background: isSelected ? "rgba(249,115,22,0.06)" : "var(--color-bg)",
                         }}
                         onMouseEnter={(e) => {
                           if (!isSelected) e.currentTarget.style.borderColor = "var(--color-text-tertiary)";

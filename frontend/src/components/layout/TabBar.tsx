@@ -32,7 +32,7 @@ export function TabBar() {
     <div style={{
       height: isMobile ? 38 : 36, flexShrink: 0,
       display: "flex", alignItems: "stretch",
-      background: "#1a1918",
+      background: "var(--color-bg-bar)",
       borderBottom: "1px solid rgba(255,255,255,0.06)",
     }}>
       <div

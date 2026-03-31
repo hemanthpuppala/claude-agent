@@ -25,7 +25,7 @@ export function TypingIndicator({ status }: { status: string }) {
         {/* Animated icon */}
         <div style={{
           width: 20, height: 20, borderRadius: 6,
-          background: "linear-gradient(135deg, #d4845a, #b86d47)",
+          background: "var(--gradient-primary)",
           display: "flex", alignItems: "center", justifyContent: "center",
           animation: "typingPulse 2s ease-in-out infinite",
         }}>

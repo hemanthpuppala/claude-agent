@@ -169,7 +169,7 @@ export function StatusBar() {
       height: 36, display: "flex", alignItems: "center", gap: 12,
       padding: "0 12px", fontSize: 12, fontFamily: "var(--font-mono)",
       borderTop: "1px solid var(--color-border-subtle)",
-      background: "#1a1918",
+      background: "var(--color-bg-bar)",
       position: "relative",
     }}>
       {/* Status dot + label */}
@@ -285,11 +285,11 @@ export function StatusBar() {
                     display: "flex", alignItems: "flex-start", gap: 10,
                     width: "100%", padding: "10px 12px", borderRadius: 8,
                     border: "none", cursor: "pointer", textAlign: "left",
-                    background: isActive ? "rgba(212,132,90,0.06)" : "transparent",
+                    background: isActive ? "rgba(249,115,22,0.06)" : "transparent",
                     transition: "background 0.1s",
                   }}
                   onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--color-bg-surface)"; }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = isActive ? "rgba(212,132,90,0.06)" : "transparent"; }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = isActive ? "rgba(249,115,22,0.06)" : "transparent"; }}
                 >
                   <Icon size={16} color={mode.color} style={{ flexShrink: 0, marginTop: 1 }} />
                   <div>

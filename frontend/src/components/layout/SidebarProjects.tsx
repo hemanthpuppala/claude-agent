@@ -90,7 +90,7 @@ export function SidebarProjects() {
               style={{
                 ...listItem,
                 ...(p.path === activeProject ? {
-                  background: "rgba(212,132,90,0.06)",
+                  background: "rgba(249,115,22,0.06)",
                   borderLeft: `3px solid ${colors.accent}`,
                   paddingLeft: spacing.sm + 1,
                 } : {}),
@@ -98,7 +98,7 @@ export function SidebarProjects() {
               onMouseEnter={hoverBg}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.background =
-                  p.path === activeProject ? "rgba(212,132,90,0.06)" : "transparent";
+                  p.path === activeProject ? "rgba(249,115,22,0.06)" : "transparent";
               }}
             >
             <button
@@ -131,7 +131,7 @@ export function SidebarProjects() {
               {p.path}
             </div>
             <div style={{ display: "flex", gap: spacing.xs + 2, paddingLeft: 21, marginTop: spacing.xs + 2 }}>
-              <QuickAction icon={<Zap size={10} />} label="Session" color={colors.accent} bg="rgba(212,132,90,0.08)" bgHover="rgba(212,132,90,0.15)" onClick={() => createSession(p.path)} />
+              <QuickAction icon={<Zap size={10} />} label="Session" color={colors.accent} bg="rgba(249,115,22,0.08)" bgHover="rgba(249,115,22,0.15)" onClick={() => createSession(p.path)} />
               <QuickAction icon={<Terminal size={10} />} label="Terminal" color={colors.toolExecute} bg="rgba(134,239,172,0.06)" bgHover="rgba(134,239,172,0.12)" onClick={() => openTerminal(`${p.name}-1`, p.path)} />
             </div>
           </div>

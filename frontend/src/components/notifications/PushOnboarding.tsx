@@ -61,12 +61,12 @@ export function PushOnboarding() {
       display: "flex", alignItems: "flex-start", gap: 12,
       padding: "12px 16px", borderRadius: 10, marginBottom: 24,
       background: "var(--color-bg-elevated)",
-      border: "1px solid rgba(212,132,90,0.2)",
+      border: "1px solid rgba(249,115,22,0.2)",
       flexWrap: "wrap",
     }}>
       <div style={{
         width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-        background: "rgba(212,132,90,0.12)",
+        background: "rgba(249,115,22,0.12)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <Bell size={16} color="var(--color-accent)" />

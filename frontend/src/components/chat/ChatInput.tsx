@@ -248,7 +248,7 @@ export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd, onCli
             ? "2px solid var(--color-accent)"
             : "1px solid var(--color-border)",
           boxShadow: dragOver
-            ? "0 0 16px rgba(212,132,90,0.2)"
+            ? "0 0 16px rgba(249,115,22,0.2)"
             : "0 2px 8px rgba(0,0,0,0.15)",
           transition: "border 0.15s, box-shadow 0.15s",
           overflow: "hidden",
@@ -264,7 +264,7 @@ export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd, onCli
                 <div key={i} style={{
                   display: "flex", alignItems: "center", gap: 4,
                   padding: "3px 8px 3px 6px", borderRadius: 6,
-                  background: att.type === "project-file" ? "rgba(212,132,90,0.1)" : "var(--color-bg-surface)",
+                  background: att.type === "project-file" ? "rgba(249,115,22,0.1)" : "var(--color-bg-surface)",
                   border: "1px solid var(--color-border-subtle)",
                   fontSize: 12, color: colors.text,
                 }}>
@@ -398,7 +398,7 @@ export function ChatInput({ onSend, onInterrupt, isRunning, disabled, cwd, onCli
                     : colors.bgSurface,
                 color: isRunning || hasContent ? "#fff" : colors.textTertiary,
                 boxShadow: (isRunning || hasContent)
-                  ? "0 2px 8px rgba(212,132,90,0.3)" : "none",
+                  ? "0 2px 8px rgba(249,115,22,0.3)" : "none",
               }}
             >
               {isRunning ? <Square size={14} /> : <ArrowUp size={16} />}
