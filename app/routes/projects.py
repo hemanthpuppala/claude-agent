@@ -89,9 +89,9 @@ async def api_git_status(path: str):
         )
         branch = branch_result.stdout.strip() or None
 
-        # Get file statuses
+        # Get file statuses (include ignored files)
         status_result = subprocess.run(
-            ["git", "-C", path, "status", "--porcelain", "-u"],
+            ["git", "-C", path, "status", "--porcelain", "-u", "--ignored"],
             capture_output=True, text=True, timeout=10,
         )
 
@@ -109,7 +109,7 @@ async def api_git_status(path: str):
             if xy == "??":
                 files[filepath] = "untracked"
             elif xy == "!!":
-                continue  # Ignored
+                files[filepath] = "ignored"
             elif index_status == "A" or work_status == "A":
                 files[filepath] = "added"
             elif index_status == "D" or work_status == "D":

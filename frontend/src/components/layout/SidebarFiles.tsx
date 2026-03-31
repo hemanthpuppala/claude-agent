@@ -10,10 +10,11 @@ import type { FileNode } from "@/lib/types";
 const GIT_STATUS_COLORS: Record<string, string> = {
   modified: "#E2C08D",    // yellow-ish
   added: "#73C991",       // green
-  untracked: "#73C991",   // green (same as added in VS Code)
+  untracked: "#73C991",   // green
   deleted: "#C74E39",     // red
   renamed: "#73C991",     // green
   conflict: "#E51400",    // bright red
+  ignored: "#6B6B6B",     // gray
 };
 
 const GIT_STATUS_LETTERS: Record<string, string> = {
@@ -24,6 +25,15 @@ const GIT_STATUS_LETTERS: Record<string, string> = {
   renamed: "R",
   conflict: "!",
 };
+
+/** Check if any descendant of a path has git changes */
+function hasDescendantChanges(dirPath: string, gitFiles: Record<string, string>): string | null {
+  for (const [filePath, status] of Object.entries(gitFiles)) {
+    if (status === "ignored") continue;
+    if (filePath.startsWith(dirPath + "/")) return status;
+  }
+  return null;
+}
 
 const EXT_ICONS: Record<string, typeof FileText> = {
   ts: FileCode, tsx: FileCode, js: FileCode, jsx: FileCode,
@@ -210,13 +220,13 @@ function TreeNode({ node, depth, onFileClick, gitFiles }: {
 }) {
   const [expanded, setExpanded] = useState(depth < 1);
   const fileStatus = gitFiles[node.path];
+  const isIgnored = fileStatus === "ignored";
   const statusColor = fileStatus ? GIT_STATUS_COLORS[fileStatus] : undefined;
   const statusLetter = fileStatus ? GIT_STATUS_LETTERS[fileStatus] : undefined;
 
-  // Check if any children have git changes (for directory indicators)
-  const hasChangedChildren = node.type === "directory" && node.children?.some(
-    (c) => gitFiles[c.path] || (c.type === "directory" && c.children?.some(gc => gitFiles[gc.path]))
-  );
+  // For directories: check deep descendants for changes
+  const descendantStatus = node.type === "directory" ? hasDescendantChanges(node.path, gitFiles) : null;
+  const dirColor = descendantStatus ? GIT_STATUS_COLORS[descendantStatus] : undefined;
 
   if (node.type === "directory") {
     return (
@@ -241,11 +251,18 @@ function TreeNode({ node, depth, onFileClick, gitFiles }: {
             ? <FolderOpen size={14} color="var(--color-accent)" style={{ flexShrink: 0 }} />
             : <Folder size={14} color="var(--color-text-tertiary)" style={{ flexShrink: 0 }} />
           }
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+          <span style={{
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
+            color: dirColor || "var(--color-text)",
+          }}>
             {node.name}
           </span>
-          {hasChangedChildren && (
-            <span style={{ width: 6, height: 6, borderRadius: 99, background: GIT_STATUS_COLORS.modified, flexShrink: 0, opacity: 0.7 }} />
+          {descendantStatus && (
+            <span style={{
+              width: 7, height: 7, borderRadius: 99,
+              background: dirColor, flexShrink: 0,
+              opacity: 0.8,
+            }} />
           )}
         </button>
         {expanded && node.children?.map((child) => (
@@ -275,10 +292,15 @@ function TreeNode({ node, depth, onFileClick, gitFiles }: {
       onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-surface)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
-      <IconComp size={14} color={statusColor || "var(--color-text-tertiary)"} style={{ flexShrink: 0 }} />
+      <IconComp size={14}
+        color={isIgnored ? "var(--color-text-disabled)" : statusColor || "var(--color-text-tertiary)"}
+        style={{ flexShrink: 0, opacity: isIgnored ? 0.4 : 1 }}
+      />
       <span style={{
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
-        color: statusColor || "var(--color-text-secondary)",
+        color: isIgnored ? "var(--color-text-disabled)" : statusColor || "var(--color-text-secondary)",
+        opacity: isIgnored ? 0.5 : 1,
+        fontStyle: isIgnored ? "italic" : "normal",
       }}>
         {node.name}
       </span>
