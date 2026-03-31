@@ -25,13 +25,15 @@ interface SessionState {
   totalTurns: number;
   messages: ServerMessage[];
   streamingText: string;
-  rateLimits: RateLimits;
   replaying: boolean;
 }
 
 interface SessionStore {
   /** Per-session state keyed by our session ID */
   sessions: Map<string, SessionState>;
+
+  /** Global rate limits (account-wide, not per-session) */
+  rateLimits: RateLimits;
 
   /** Initialize state for a session */
   initSession: (id: string, info: {
@@ -87,6 +89,7 @@ const defaultConfig: SessionConfig = {
 
 export const useSessionStore = create<SessionStore>()((set, get) => ({
   sessions: new Map(),
+  rateLimits: { session: null, weekly: null },
 
   initSession: (id, info) => {
     const sessions = new Map(get().sessions);
@@ -102,7 +105,6 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
       // Keep existing messages on reconnect — replay will update them via seq dedup
       messages: existing?.messages ?? [],
       streamingText: "",
-      rateLimits: existing?.rateLimits ?? { session: null, weekly: null },
       replaying: false,
     });
     set({ sessions });
@@ -182,20 +184,16 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     set({ sessions });
   },
 
-  setRateLimit: (id, info) => {
-    const sessions = new Map(get().sessions);
-    const state = sessions.get(id);
-    if (!state) return;
-    const rateLimits = { ...state.rateLimits };
+  setRateLimit: (_id, info) => {
+    const rateLimits = { ...get().rateLimits };
     if (info.type === "five_hour") {
       rateLimits.session = info;
     } else if (info.type === "seven_day") {
       rateLimits.weekly = info;
     } else {
-      rateLimits.session = info; // fallback
+      rateLimits.session = info;
     }
-    sessions.set(id, { ...state, rateLimits });
-    set({ sessions });
+    set({ rateLimits });
   },
 
   clearMessages: (id) => {

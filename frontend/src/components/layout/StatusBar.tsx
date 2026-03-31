@@ -214,21 +214,26 @@ export function StatusBar() {
         {session.totalTurns} turns
       </span>
 
-      {/* Session usage (5-hour) */}
-      {session.rateLimits.session && (
-        <>
-          <Sep />
-          <UsagePill label="5h" info={session.rateLimits.session} isMobile={isMobile} />
-        </>
-      )}
-
-      {/* Weekly usage (7-day) */}
-      {session.rateLimits.weekly && (
-        <>
-          <Sep />
-          <UsagePill label="7d" info={session.rateLimits.weekly} isMobile={isMobile} />
-        </>
-      )}
+      {/* Account usage — global, not per-session */}
+      {(() => {
+        const rl = useSessionStore((s) => s.rateLimits);
+        return (
+          <>
+            {rl.session && (
+              <>
+                <Sep />
+                <UsagePill label="5h" info={rl.session} isMobile={isMobile} />
+              </>
+            )}
+            {rl.weekly && (
+              <>
+                <Sep />
+                <UsagePill label="7d" info={rl.weekly} isMobile={isMobile} />
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
