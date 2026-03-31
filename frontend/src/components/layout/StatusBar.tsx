@@ -111,6 +111,7 @@ export function StatusBar() {
   const activeTab = useTabStore((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const sessionId = activeTab?.sessionId || null;
   const session = useSessionStore((s) => sessionId ? s.getSession(sessionId) : undefined);
+  const rateLimits = useSessionStore((s) => s.rateLimits);
   const { sendConfig } = useClaudeWebSocket(sessionId);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -215,25 +216,18 @@ export function StatusBar() {
       </span>
 
       {/* Account usage — global, not per-session */}
-      {(() => {
-        const rl = useSessionStore((s) => s.rateLimits);
-        return (
-          <>
-            {rl.session && (
-              <>
-                <Sep />
-                <UsagePill label="5h" info={rl.session} isMobile={isMobile} />
-              </>
-            )}
-            {rl.weekly && (
-              <>
-                <Sep />
-                <UsagePill label="7d" info={rl.weekly} isMobile={isMobile} />
-              </>
-            )}
-          </>
-        );
-      })()}
+      {rateLimits.session && (
+        <>
+          <Sep />
+          <UsagePill label="5h" info={rateLimits.session} isMobile={isMobile} />
+        </>
+      )}
+      {rateLimits.weekly && (
+        <>
+          <Sep />
+          <UsagePill label="7d" info={rateLimits.weekly} isMobile={isMobile} />
+        </>
+      )}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
