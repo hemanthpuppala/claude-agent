@@ -21,6 +21,7 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanedUpRef = useRef(false);
   const connectedKeyRef = useRef<string | null>(null);
+  const replayingRef = useRef(false);
 
   // Stable refs to props — avoids stale closures
   const sessionIdRef = useRef(sessionId);
@@ -65,7 +66,9 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
       try { raw = JSON.parse(event.data); } catch { return; }
 
       // Handle rate_limit separately (not in ServerMessage type union)
+      // Skip during replay — replayed rate_limits are stale
       if (raw.type === "rate_limit") {
+        if (replayingRef.current) return;
         const key = getKey();
         if (key) {
           const infoStr = String(raw.info || "");
@@ -112,11 +115,13 @@ export function useClaudeWebSocket(sessionId: string | null, cwd?: string) {
         case "replay_start": {
           const key = getKey();
           if (key) store.setReplaying(key, true);
+          replayingRef.current = true;
           break;
         }
         case "replay_end": {
           const key = getKey();
           if (key) store.setReplaying(key, false);
+          replayingRef.current = false;
           break;
         }
         case "config_updated": {
